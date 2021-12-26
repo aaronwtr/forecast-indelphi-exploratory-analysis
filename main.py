@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import plotly.express as px
 import os
 
 
@@ -20,6 +21,17 @@ def get_pearson_ccs(feature_names, feature_data):
     return pearson_ccs
 
 
+def scatter_plot(feature_a, feature_b, feature_data, pearson_ccs):
+    fig = px.scatter(feature_data, x=feature_a, y=feature_b, size_max=20)
+    fig.update_traces(
+        marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')),
+        selector=dict(mode='markers')
+    )
+    fig.show()
+
+    # find out how to add annotation with pearson cc.
+
+
 def main():
     data = pd.read_pickle('inDelphi/test_FORECasT_inDelphi.pkl')
 
@@ -31,6 +43,7 @@ def main():
     else:
         pearson_ccs = get_pearson_ccs(del_features_cols, del_features)
 
+    scatter_plot(del_features_cols[1], del_features_cols[2], del_features, pearson_ccs)
 
 if __name__ == '__main__':
     main()
