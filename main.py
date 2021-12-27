@@ -27,9 +27,24 @@ def scatter_plot(feature_a, feature_b, feature_data, pearson_ccs):
         marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')),
         selector=dict(mode='markers')
     )
+
+    fig.update_traces(textposition='top center')
+
+    fig.update_layout(
+        height=800,
+        title_text='Pearson Correlation Coefficient is {}'.format(pearson_ccs[(feature_a, feature_b)]),
+    )
+
     fig.show()
 
-    # find out how to add annotation with pearson cc.
+
+def get_significant_correlations(pearson_ccs, threshold=0.5):
+    significant_correlations = {}
+    for key, value in pearson_ccs.items():
+        if abs(value) > threshold:
+            significant_correlations[key] = value
+
+    return significant_correlations
 
 
 def main():
@@ -43,7 +58,11 @@ def main():
     else:
         pearson_ccs = get_pearson_ccs(del_features_cols, del_features)
 
-    scatter_plot(del_features_cols[1], del_features_cols[2], del_features, pearson_ccs)
+    significant_correlations = get_significant_correlations(pearson_ccs)
+
+    for key, value in significant_correlations.items():
+        scatter_plot(key[0], key[1], del_features, pearson_ccs)
+
 
 if __name__ == '__main__':
     main()
