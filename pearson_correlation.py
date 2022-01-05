@@ -3,6 +3,10 @@ import plotly.express as px
 import pandas as pd
 
 
+PEARSON_PLOT_OUTPUT_DIR = 'pearson_ccs_FORECasT/pearson_cc_'
+FEATURE_DATA_FILE = 'pearson_ccs_'
+
+
 def get_pearson_ccs(feature_names, feature_data, mutation):
     pearson_ccs = {}
     feature_names_copy = feature_names.copy()
@@ -14,7 +18,7 @@ def get_pearson_ccs(feature_names, feature_data, mutation):
             pearson_cc = np.corrcoef(feat_a_data, feat_b_data)[0, 1]
             pearson_ccs[(feature_a, feature_b)] = pearson_cc
 
-    with open('pearson_ccs_' + str(mutation) + '.pkl', 'wb') as f:
+    with open(str(FEATURE_DATA_FILE) + str(mutation) + '.pkl', 'wb') as f:
         pd.to_pickle(pearson_ccs, f)
 
     return pearson_ccs
@@ -31,10 +35,10 @@ def scatter_plot(feature_a, feature_b, feature_data, pearson_ccs):
 
     fig.update_layout(
         height=800,
-        title_text='Pearson Correlation Coefficient is {}'.format(pearson_ccs[(feature_a, feature_b)]),
+        title_text='Pearson Correlation Coefficient is {}'.format(pearson_ccs[(feature_a, feature_b)])
     )
 
-    fig.write_image('pearson_ccs_FORECasT ' + str(feature_a) + ' ' + str(feature_b) + '.png')
+    fig.write_image(str(PEARSON_PLOT_OUTPUT_DIR) + str(feature_a) + '_' + str(feature_b) + '.png')
 
 
 def get_significant_correlations(pearson_ccs, lower_threshold=0.5, upper_threshold=0.95):
