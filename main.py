@@ -51,17 +51,19 @@ def main():
     data = pd.read_pickle('inDelphi/test_FORECasT_inDelphi.pkl')
 
     mutation = 'del_features'
-    del_features = pd.DataFrame(data[mutation])
-    del_features_cols = del_features.columns.tolist()
+    features = pd.DataFrame(data[mutation])
+    features_cols = features.columns.tolist()
 
     if os.path.exists('pearson_ccs_' + str(mutation) + '.pkl'):
         pearson_ccs = pd.read_pickle('pearson_ccs_' + str(mutation) + '.pkl')
     else:
-        pearson_ccs = get_pearson_ccs(del_features_cols, del_features, mutation)
+        pearson_ccs = get_pearson_ccs(features_cols, features, mutation)
 
     significant_correlations = get_significant_correlations(pearson_ccs)
 
     print(significant_correlations)
+
+    scatter_plot('Start', 'leftEdge', features, pearson_ccs)
 
 
 if __name__ == '__main__':
