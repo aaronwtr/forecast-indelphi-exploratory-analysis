@@ -21,7 +21,8 @@ def main():
     significant_correlations = pearson.get_significant_correlations(pearson_ccs)
 
     for corr in significant_correlations:
-        pearson.scatter_plot(corr[0], corr[1], features, pearson_ccs)
+        if str(pearson.FEATURE_OUTPUT_PREFIX) + str(corr[0]) + '_' + str(corr[1]) + '.png' not in os.listdir(pearson.PEARSON_PLOT_OUTPUT_DIR):
+            pearson.scatter_plot(corr[0], corr[1], features, pearson_ccs)
 
 
 if __name__ == '__main__':
