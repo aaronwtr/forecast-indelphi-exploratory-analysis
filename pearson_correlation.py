@@ -34,13 +34,13 @@ def scatter_plot(feature_a, feature_b, feature_data, pearson_ccs):
         title_text='Pearson Correlation Coefficient is {}'.format(pearson_ccs[(feature_a, feature_b)]),
     )
 
-    fig.show()
+    fig.write_image('pearson_ccs_FORECasT ' + str(feature_a) + ' ' + str(feature_b) + '.png')
 
 
-def get_significant_correlations(pearson_ccs, threshold=0.5):
+def get_significant_correlations(pearson_ccs, lower_threshold=0.5, upper_threshold=0.95):
     significant_correlations = {}
     for key, value in pearson_ccs.items():
-        if abs(value) > threshold:
+        if lower_threshold < abs(value) < upper_threshold:
             significant_correlations[key] = value
 
     return significant_correlations
