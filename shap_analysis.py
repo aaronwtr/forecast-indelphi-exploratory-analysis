@@ -1,11 +1,17 @@
 import shap
 import xgboost as xgb
+import pandas as pd
+import subprocess
+import os
+import csv
+import sys
+import io
 
 '''
-In the following file, we will use the SHAP package to analyze an example XGBoost model. How do we translate this to the
-FORECasT model?
+In the following file, we will use the SHAP package to analyze an example XGBoost model. Consequently, we attempt to 
+extent the shap explanation to the FORECasT model.
 
-Feature explanations:
+Feature explanations Boston housing example:
 https://www.cs.toronto.edu/~delve/data/boston/bostonDetail.html 
 '''
 
@@ -25,3 +31,14 @@ def boston_housing_example():
     print(shap_values)
 
     shap.plots.scatter(shap_values[:, "AGE"], color=shap_values)
+
+
+def read_oligos(OLIGO_FILE):
+    oligo_data = pd.read_pickle(OLIGO_FILE)
+
+    return oligo_data
+
+
+if __name__ == '__main__':
+    df = read_oligos("FORECasT/train/Tijsterman_Analyser/Oligo_40")
+    print(df.columns)
