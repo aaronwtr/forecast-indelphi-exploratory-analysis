@@ -1,8 +1,6 @@
 
 FORECasT/FORECasT_read_counts/
 
-FORECasT/
-
 inDelphi/
 
 pearson_ccs.pkl
@@ -12,3 +10,7 @@ pearson_ccs_del_features.pkl
 pearson_ccs_ins_features.pkl
 
 *.png
+
+*.pkl
+
+FORECasT/train/Tijsterman_Analyser/

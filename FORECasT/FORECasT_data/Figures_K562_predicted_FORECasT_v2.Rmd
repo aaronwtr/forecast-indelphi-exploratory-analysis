@@ -1,0 +1,160 @@
+---
+title: "Figures for predicted indels"
+author: "Vitalii Kleshchevnikov"
+date: "06/07/2018"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = FALSE)
+start_time = Sys.time()
+
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(cowplot)
+  library(grid)
+  library(Biostrings)
+  library(R.utils)
+})
+source("./r_utils/myggpairs.R")
+source("./r_utils/loadFromFARM.R")
+source("./r_utils/readIndelSummaries.R") 
+source("./r_utils/dominantIndel.R")
+source("./r_utils/findIndelLevels.R")
+source("./r_utils/Other.R")
+source("./r_utils/addIndelRepl.R") 
+source("./r_utils/selectCellLines.R")
+source("./r_utils/predictedK562Files.R")
+source("./r_utils/renameSampleGroup.R")
+source("./r_utils/readDPI7OneCellLine.R") 
+source("./r_utils/calcSampleScatter.R")
+source("./r_utils/plotSampleScatter.R") 
+source("./r_utils/mergeSampleScatter.R")
+source("./r_utils/plotFreqIndels5D.R")
+source("./r_utils/caclMostFreqIndel5D.R")
+plot_count = 1
+my.ggsave = function(plot_count, name = NULL, width = NA, height = NA,
+                     units = c("in", "cm", "mm"), device = "svg"){
+  if(is.null(name)) 
+    name = paste0("../results/plots/", plot_count, ".", device) else
+      name = paste0("../results/plots/", name, ".", device)
+    dir = gsub(basename(name),"", name)
+    if(!dir.exists(dir)) dir.create(dir, recursive = T)
+    ggsave(name, device = device, width = width, height = height, units = units)
+    plot_count + 1
+} # usage plot_count = my.ggsave(plot_count)
+
+## Find data
+data.base.dir = "../data/summary_data/"
+data.set.dir = "more_indel_summaries/"
+data.dir = paste0(data.base.dir, data.set.dir) 
+data.files = paste0(data.dir, list.files(data.dir))
+```
+
+```{r load_seq_data, message=FALSE, warning=FALSE}
+# guide sequences 
+seq.set.dir = "guide_target_seq/" # _normWT
+seq.dir = paste0(data.base.dir, seq.set.dir) 
+seq.files = paste0(seq.dir, list.files(seq.dir))
+# read sequence data
+seq_data = fread(seq.files, stringsAsFactors = F)
+# change column names to data.table-compatible format
+setnames(seq_data, colnames(seq_data),
+         gsub(" ","_",colnames(seq_data)))
+seq_data[, ID := gsub("_","",ID)]
+Target_string = seq_data[,DNAStringSet(Target)]
+names(Target_string) = seq_data$ID
+Guide_string = seq_data[,DNAStringSet(Guide)]
+names(Guide_string) = seq_data$ID
+# find reverse complement reversed targets
+Target_string[seq_data$PAM_Direction == "REVERSE"] = reverseComplement(Target_string[seq_data$PAM_Direction == "REVERSE"])
+seq_data[PAM_Direction == "REVERSE", PAM_Location := nchar(Target) - PAM_Location]
+seq_data[PAM_Direction == "REVERSE", PAM_Direction := "FORWARD"]
+```
+
+```{r load_all_cell_lines}
+## Load and process data
+####/ set some options
+N_reads_filter = 20
+inv = F
+
+# define order of variables and colors for plots
+source("./r_utils/order_var_script.R")
+
+# choose thresholds for dominant indel
+dominant_indel_freq = 0.2 # individual indels
+####\
+
+# select relevant files, choose a single sample group (only K562 for now):
+new.DPI7.data.files = predictedFiles(data.files, sample_shared_name = "K562|_CAS9_12NA|Predicted_5000", predicted = "Predicted_5000")
+
+# read and use gRNAs used for validation in the paper
+validation_gRNAs = fread("../data/summary_data/old_new_validation_guides.txt", stringsAsFactors = F)
+# change column names to data.table-compatible format
+setnames(validation_gRNAs, colnames(validation_gRNAs),
+         gsub(" ","_",colnames(validation_gRNAs)))
+# make sure gRNAs with pam error are not in the set
+pam_errors = fread("../data/summary_data/pam_errors.txt", stringsAsFactors = F)
+validation_gRNAs = validation_gRNAs[!New_Oligo_Id %in% pam_errors$ID]
+validation_gRNAs = validation_gRNAs[!Old_Oligo_Id %in% pam_errors$ID]
+
+
+data = readIndelSummaries(new.DPI7.data.files, guide_list = validation_gRNAs$New_Oligo_Id, inv = inv)
+# select guides present in all samples
+data = inAllSamples(data[Total_reads > N_reads_filter],.(Oligo_Id))
+
+# how many guides per sample?
+guidesPerSample(data)
+Sys.time() - start_time
+```
+
+```{r all_freq_scatterplot_repl, fig.height=7.5, fig.width=7.5}
+## replace with the scatterplot function to make this plot, then generate this file with FORECasT-ver1, commit, create a copy for FORECasT-ver2, generate, commit 
+data = renameSampleGroup(data)
+data_repl = copy(data)
+# calculate means of normalised and cumulative reads across replicates
+data = addIndelRepl(data)
+
+#sanity check
+unique(data[Oligo_Id == Oligo_Id[1] & 
+              Most_Common_Indel == Most_Common_Indel[1] &
+              sample_group == "K562"]) # should be one line
+data[, sum(sum_MCI_Reads) > sum_Total_reads, by = .(Oligo_Id, sample_group)][,mean(V1)] # should be 0
+
+data.indels = unique(data[, .(Oligo_Id, Most_Common_Indel, mean_Norm_MCI_Reads, Norm_MCI_Reads, few_indel_classes, complex_indel_classes, sample_group)])
+# set order of indel classes
+data.indels[, few_indel_classes := factor(few_indel_classes,
+                                                levels = few_indel_classes_levels)]
+all_freq = unique(data.indels[, .(Oligo_Id, Most_Common_Indel, few_indel_classes, Norm_MCI_Reads, sample_group)])
+
+```
+
+## Figure S20. Comparison of allele frequencies from predictions and replicates  
+
+Density of frequency of mutations estimated by two approaches. Left panel: predicted (y-axis) vs combined measurement (x-axis); right panel: measurement replicate 1 (x-axis)  vs measurement replicate 2 (y-axis), both categorised by mutation type (rows), with Pearson’s correlation given. I+D mutations and I>2 mutations are not predicted by the model.  
+
+```{r, fig.height=12, fig.width=6}
+data_repl2 = data_repl[sample_group == "K562" & sample_ID != "ST_Feb_2018_CAS9_12NA_1600X_DPI7"]
+predicted.pairs = calcSampleScatter(data_repl2,
+                                    split_by = "few_indel_classes",
+                                    value.var = "Norm_MCI_Reads",
+                                    x_group = "ST_June_2017_K562_800x_LV7A_DPI7",
+                                    y_group = "ST_June_2017_K562_800x_LV7B_DPI7",
+                                    x_name = "replicate 1", y_name = "replicate 2",
+                                    data_pred = all_freq, sample_group_sel = "K562",
+                                    pred_group = "Predicted",
+                                    type_samples = "Replicates", type_predicted = "Predicted")
+plotSampleScatter(predicted.pairs, binwidth = 0.025)
+plot_count = my.ggsave(plot_count, name = "Figure_S20", width = 8, height = 12, units = "in")
+```
+
+```{r}
+Sys.Date. = Sys.Date()
+Sys.Date.
+session_info. = devtools::session_info()
+session_info.
+Sys.time() - start_time
+```

@@ -1,0 +1,15 @@
+setup.py
+selftarget/__init__.py
+selftarget/data.py
+selftarget/indel.py
+selftarget/oligo.py
+selftarget/plot.py
+selftarget/profile.py
+selftarget/util.py
+selftarget/view.py
+selftarget.egg-info/PKG-INFO
+selftarget.egg-info/SOURCES.txt
+selftarget.egg-info/dependency_links.txt
+selftarget.egg-info/not-zip-safe
+selftarget.egg-info/requires.txt
+selftarget.egg-info/top_level.txt

@@ -1,0 +1,377 @@
+---
+title: "Figures for paper using data from K562 cells"
+author: "Vitalii Kleshchevnikov"
+date: "06/07/2018"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup}
+start_time = Sys.time()
+
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(cowplot)
+  library(grid)
+  library(R.utils)
+})
+source("./r_utils/myggpairs.R")
+source("./r_utils/loadFromFARM.R")
+source("./r_utils/readIndelSummaries.R") 
+source("./r_utils/dominantIndel.R")
+source("./r_utils/findIndelLevels.R")
+source("./r_utils/Other.R")
+source("./r_utils/addIndelRepl.R") 
+source("./r_utils/selectCellLines.R")
+source("./r_utils/predictedK562Files.R")
+source("./r_utils/renameSampleGroup.R")
+source("./r_utils/readDPI7OneCellLine.R") 
+source("./r_utils/calcSampleScatter.R")
+source("./r_utils/plotSampleScatter.R") 
+source("./r_utils/mergeSampleScatter.R")
+
+plot_count = 1
+my.ggsave = function(plot_count, name = NULL, width = NA, height = NA,
+                     units = c("in", "cm", "mm"), device = "svg"){
+  if(is.null(name)) 
+    name = paste0("../results/plots/", plot_count, ".", device) else
+      name = paste0("../results/plots/", name, ".", device)
+    dir = gsub(basename(name),"", name)
+    if(!dir.exists(dir)) dir.create(dir, recursive = T)
+    ggsave(name, device = device, width = width, height = height, units = units)
+    plot_count + 1
+} # usage plot_count = my.ggsave(plot_count)
+
+## Find data
+data.base.dir = "../data/summary_data/"
+data.set.dir = "more_indel_summaries/"
+data.dir = paste0(data.base.dir, data.set.dir) 
+data.files = paste0(data.dir, list.files(data.dir))
+```
+
+```{r load_all_cell_lines}
+## Load and process data
+####/ set some options
+N_reads_filter = 20
+inv = F
+# choose a single sample group (only K562 for now)
+sample_shared_name = "K562|_CAS9_12NA"
+
+# define order of variables and colors for plots
+source("./r_utils/order_var_script.R")
+
+# choose thresholds for dominant indel
+dominant_indel_freq = 0.2 # individual indels
+####\
+
+# find relevant files:
+# DPI7
+new.DPI3.data.files = readOneCellLine(data.files, sample_shared_name, DPI = 3)
+new.DPI7.data.files = readOneCellLine(data.files, sample_shared_name, DPI = 7)
+new.DPI10.data.files = readOneCellLine(data.files, sample_shared_name, DPI = 10)
+new.DPI7.data.files = c(new.DPI3.data.files, new.DPI7.data.files, new.DPI10.data.files)
+
+real_guides_k562_20 = fread("../data/summary_data/real_guides_in_K562_samples_min20reads.txt", stringsAsFactors = F, header = F)
+
+data = readIndelSummaries(new.DPI7.data.files, guide_list = real_guides_k562_20$V1, inv = inv)
+data = renameSampleGroup(data)
+data_repl = copy(data)
+data = data[grepl("DPI7", sample_ID)]
+# select guides present in all samples
+data = inAllSamples(data,.(Oligo_Id))
+data_repl = inAllSamples(data_repl,.(Oligo_Id))
+
+# how many guides per sample?
+# guidesPerSample(data)
+print("How many guides per sample?")
+guidesPerSample(data_repl)
+#Sys.time() - start_time
+```
+
+```{r data_processing}
+# set order of indel classes
+data_repl[, few_indel_classes := factor(few_indel_classes,
+                                                levels = few_indel_classes_levels)]
+data_repl[, complex_indel_classes := factor(complex_indel_classes,
+                                                levels = complex_indel_classes_levels)]
+# calculate means of normalised and cumulative reads across replicates
+data = addIndelRepl(data)
+
+# sanity check - uncomment when reproducing
+#unique(data[Oligo_Id == Oligo_Id[1] & 
+#              Most_Common_Indel == Most_Common_Indel[1] &
+#              sample_group == "K562"]) # should be one line
+#data[, sum(sum_MCI_Reads) > sum_Total_reads, by = .(Oligo_Id, sample_group)][,mean(V1)] # should be 0
+
+data.indels = unique(data[, .(Oligo_Id, Most_Common_Indel, mean_Norm_MCI_Reads, Norm_MCI_Reads, few_indel_classes, complex_indel_classes, sample_group)])
+# set order of indel classes
+data.indels[, few_indel_classes := factor(few_indel_classes,
+                                                levels = few_indel_classes_levels)]
+data.indels[, complex_indel_classes := factor(complex_indel_classes,
+                                                levels = complex_indel_classes_levels)]
+# total reads for paper
+data_total_reads = unique(data[sample_group %in% "K562",.(Oligo_Id, sample_group,sum_Total_reads)])
+```
+
+## what is the median number of mutated reads?  
+text for paper    
+In this section we evaluate an unbiased selection of `r unique(guidesPerSampleGroup(data)$N_guides)` gRNA-target pairs, all of which had at least `r N_reads_filter` mutated reads, and a median of `r data_total_reads[,median(sum_Total_reads)]` reads collected across 3 replicates.  
+
+## Figure 3E. A single allele often accounts for a large fraction of editing outcomes for a gRNA.
+
+Number of gRNAs (y-axis) with the frequency of its most common outcome (x-axis) in K562 cells.
+
+```{r, fig.height=5, fig.width=6}
+most_freq = copy(data.indels)[sample_group == "K562", .(Oligo_Id, Most_Common_Indel, mean_Norm_MCI_Reads, Norm_MCI_Reads, few_indel_classes, sample_group)]
+most_freq = most_freq[, .(max_Norm_MCI_Reads = as.numeric(max(mean_Norm_MCI_Reads))),
+       by = .(Oligo_Id, sample_group)]
+
+freq = ggplot(most_freq, aes(x = max_Norm_MCI_Reads))+
+      geom_histogram(binwidth = 0.05, pad = TRUE, col="white", size = 2) +
+  xlab("Frequency of the most common outcome") + 
+  ylab("Number of guide RNAs") +
+  theme_bw() +
+  theme(plot.title = element_text(size=16,face="bold"),
+        axis.title=element_text(size=14,face="bold"),
+        axis.text = element_text(size=12),
+        panel.grid.minor = element_line(size = 0),
+        panel.grid.major = element_line(size = 0.2),
+        strip.text.y = element_text(size=12, angle = 0))
+freq +
+  geom_vline(xintercept = 0.2, size = 2, alpha = 0.6) +
+  geom_label(mapping = aes(x = x, y = y, label = label),
+             data = data.table(x = 0.3, y = 730, label = "50%"), size = 10, inherit.aes = F) +
+  geom_vline(xintercept = 0.4, size = 2, alpha = 0.6) + 
+  geom_label(mapping = aes(x = x, y = y, label = label),
+             data = data.table(x = 0.5, y = 230, label = "11%"), size = 10, inherit.aes = F)
+plot_count = my.ggsave(plot_count, name = "Figure_3E", width = 6, height = 5, units = "in")
+```
+
+## Figure 3C. Per-gRNA event frequencies differ across indel classes.- in K562  
+
+Number of individual indels (y-axis) with increasing percentage of all mutations observed for their gRNA (x-axis) depending on indel class (rows and colors).  
+
+```{r all_freq, fig.height=5, fig.width=5}
+all_freq = unique(data.indels[sample_group == "K562", .(Oligo_Id, Most_Common_Indel, few_indel_classes, Norm_MCI_Reads, sample_group)])
+
+all_freq.plot = ggplot(all_freq, aes(x = Norm_MCI_Reads, fill = few_indel_classes))+
+  geom_histogram(binwidth = 0.05, pad = TRUE, col="white", size = 1, alpha = 1) +
+  xlab("Percentage of mutations per gRNA") + 
+  ylab("Number of mutations") +
+  theme_bw() + scale_y_log10(breaks = c(10, 1000, 100000), labels = c("10", "1,000", "100,000")) +
+  scale_x_continuous(labels = scales::percent) +
+  theme(legend.title = element_text(size = 12,face="bold"),
+        legend.text = element_text(size = 12), 
+        legend.position = "none",
+        plot.title = element_text(size=16,face="bold"),
+        axis.title=element_text(size=12,face="bold"),
+        axis.text = element_text(size=12),
+        panel.grid.minor = element_line(size = 0),
+        panel.grid.major = element_line(size = 0.2),
+        strip.text.y = element_text(size=12, angle = 0))+
+  scale_color_manual(values=indel_colors)+
+  scale_fill_manual(values=indel_colors)+
+  labs(fill = "")
+all_freq.plot + facet_grid(few_indel_classes~.)
+plot_count = my.ggsave(plot_count, name = "Figure_3C", width = 5, height = 5, units = "in")
+```
+
+## Figure S7. Reproducibility of indel frequencies per gRNA
+
+Number of indels (color) that compose increasing percentage of all mutations observed for their gRNA in sample 1 (x-axis) vs sample 2 (y-axis) depending on indel class (rows). Columns compare seven days post infection (DPI7) replicate 1 (R1) vs R2 (first column), DPI10 R1 vs R2 (second column), DPI7 R1 vs DPI10 R1 (third column), and DPI7 R2 vs DPI10 R2 (last column).  
+
+```{r all_freq_scatterplot_time_complex, fig.height=12, fig.width=11.4}
+data_repl2 = data_repl[sample_group == "K562" & sample_ID != "ST_Feb_2018_CAS9_12NA_1600X_DPI7"]
+#data_repl2 = data_repl2[MCI_Reads > 3]
+
+repl.pairs_DPI7 = calcSampleScatter(data_repl2,
+                                    split_by = "few_indel_classes",
+                                    value.var = "Norm_MCI_Reads",
+                                    x_group = "ST_June_2017_K562_800x_LV7A_DPI7",
+                                    y_group = "ST_June_2017_K562_800x_LV7B_DPI7",
+                                    x_name = "replicate 1", y_name = "replicate 2")
+repl.pairs_DPI10 = calcSampleScatter(data_repl2,
+                                     split_by = "few_indel_classes",
+                                     value.var = "Norm_MCI_Reads",
+                                     x_group = "ST_June_2017_K562_800x_LV7A_DPI10",
+                                     y_group = "ST_June_2017_K562_800x_LV7B_DPI10",
+                                     x_name = "replicate 1", y_name = "replicate 2")
+repl.pairs_1 = calcSampleScatter(data_repl2,
+                                 split_by = "few_indel_classes",
+                                 value.var = "Norm_MCI_Reads",
+                                 x_group = "ST_June_2017_K562_800x_LV7A_DPI7",
+                                 y_group = "ST_June_2017_K562_800x_LV7A_DPI10",
+                                 x_name = "replicate 1", y_name = "replicate 2")
+repl.pairs_2 = calcSampleScatter(data_repl2,
+                                 split_by = "few_indel_classes",
+                                 value.var = "Norm_MCI_Reads",
+                                 x_group = "ST_June_2017_K562_800x_LV7B_DPI7",
+                                 y_group = "ST_June_2017_K562_800x_LV7B_DPI10",
+                                 x_name = "replicate 1", y_name = "replicate 2")
+
+repl.pairs = mergeSampleScatter(data_list = list(repl.pairs_DPI7, repl.pairs_DPI10,
+                                                 repl.pairs_1, repl.pairs_2),
+                                data_type = c("DPI7, rep 1 vs rep 2", "DPI10, rep 1 vs rep 2",
+                                              "rep 1, DPI7 vs DPI10", "rep 2, DPI7 vs DPI10"))
+
+plotSampleScatter(repl.pairs, binwidth = 0.025) + 
+  xlab(paste0("Percentage of mutations per gRNA (replicate 1 / DPI 7)")) + 
+  ylab(paste0("Percentage of mutations per gRNA (replicate 2 / DPI 10)"))
+
+plot_count = my.ggsave(plot_count, name = "Figure_S7",
+                       width = 11.4, height = 12, units = "in")
+plot_count = my.ggsave(plot_count, name = "Figure_S7",
+                       width = 11.4, height = 12, units = "in", device = "png")
+```
+
+## Figure 3F. A small number of outcomes explains most of the observed data, but many low frequency alleles are present.
+
+Cumulative fraction of observed data (y-axis) matching an increasing number of outcomes (x-axis) for each target in K562 cells (grey lines), and their average (blue line).
+
+```{r cum_read_indel_seen_calculation, eval=TRUE}
+data.cum = data[,.(sample_group, Oligo_Id, indel_class, Cum_Norm_MCI_Reads, Most_Common_Indel)]
+setorder(data.cum, sample_group, Oligo_Id, Cum_Norm_MCI_Reads)
+
+data.cum[, indels_seen := sapply(1:length(Most_Common_Indel),
+                                 function(i){ uniqueN(Most_Common_Indel[1:i])}),
+         by = .(sample_group, Oligo_Id)] 
+data.cum[, c("indel_class", "Most_Common_Indel") := NULL] 
+data.cum = unique(data.cum)
+
+# Find a median over guides: median frequency of reads for each number of indels seen
+{
+  # add medians for BINS as a different oligo, and add color attribute
+  data.cum[, average_prop_indels_seen := NA]
+  
+  # indels seen
+  data_temp1 = data.cum[, .(average_prop_indels_seen = as.numeric(median(Cum_Norm_MCI_Reads)),
+                            Oligo_Id = "average",
+                            Cum_Norm_MCI_Reads = NA), by = .(sample_group, indels_seen)]
+  data.cum = rbind(data.cum, unique(data_temp1))
+}
+```
+
+```{r indels_seen_summary_many_lines, fig.height=3.7, fig.width=3, eval=TRUE}
+# select relevant columns
+data.cum = unique(data.cum[,.(sample_group, Oligo_Id, Cum_Norm_MCI_Reads, indels_seen, average_prop_indels_seen)])
+
+# exact indel (D19_L-16C1R5 or I1_L-1R0) line plots for each guide
+ggplot(data = data.cum[indels_seen <= 25],
+       aes(x=indels_seen, y=Cum_Norm_MCI_Reads, group=Oligo_Id)) +
+  geom_line(alpha = 0.1, size = 0.05) +
+  xlim(0.99,25.01)+
+  theme_bw() + theme(strip.text.y = element_text(angle = 0),
+                     strip.text.x = element_text(size=12),
+                     panel.grid.minor = element_line(size = 0),
+                     panel.grid.major = element_line(size = 0.2),
+                     axis.title = element_text(size=12,face="bold"),
+                     axis.text = element_text(size = 10),
+                     axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+                     legend.position = "none",
+                     plot.background = element_rect(fill="transparent", colour="transparent")) +
+  xlab("Number of alleles") + 
+  ylab("Cumulative fraction of outcomes")+
+  labs(fill = "Number of gRNAs", color = "Number of gRNAs") +
+  geom_line(aes(x=indels_seen, y=average_prop_indels_seen, group=Oligo_Id), colour = "darkblue", size = 1.5)
+plot_count = my.ggsave(plot_count, name = "Figure_3F", width = 3, height = 3.7, units = "in")
+```
+
+```{r prop_indels_by_size, eval=TRUE, fig.height=4.5, fig.width=10}
+## Calculate proportions of indels of each size
+# filter data by indel class
+data.indels.m = unique(data[indel_class %in% c(paste0("I",1:10), paste0("D",1:30)),
+                             .(Oligo_Id, Most_Common_Indel, mean_Norm_MCI_Reads, Norm_MCI_Reads, few_indel_classes, sample_group, indel_class, Microhomology_Size)])
+
+# set order of indel classes
+indel_levels = findIndelLevels(data.indels.m, gap = T)
+data.indels.m[, indel_class := factor(indel_class,
+                                      levels = indel_levels)]
+# sum up reads for indels of the same class within samples
+data.indels.m[, reads_per_indel_class := sum(mean_Norm_MCI_Reads), 
+              by = c("Oligo_Id", "sample_group", "indel_class")]
+
+# for each indel class in control K562 calculate sum/mean/median (across guides) the frequency of outcomes of each class (reads_per_indel_class) in other sample groups
+data.indels3 = unique(data.indels.m[,.(Oligo_Id, indel_class, sample_group, reads_per_indel_class)])
+
+data.indels3[, indel_class_mean_general := as.numeric(mean(reads_per_indel_class)),
+            by = .(indel_class, sample_group)]
+
+legend_lab4 = paste0("\n(",guidesPerSampleGroup(data.indels3)[, unique(N_guides)]," total)")
+
+
+# set order of samples
+data.indels3[, sample_group := factor(sample_group,
+                                             levels = sample_group_levels)]
+# add rows to add a space between insertions and deletions in figures
+data.indels3 = rbind(data.indels3, unique(data.table(indel_class = "",
+                              indel_class_mean_general = 0,
+                              sample_group = data.indels3$sample_group,
+                              Oligo_Id = data.indels3$Oligo_Id,
+                              reads_per_indel_class = 0)))
+```
+
+## Figure 3A. Single base insertions are most common, with a long tail of moderately long deletions. 
+
+The frequency (y-axis) of deletion or insertion size (x-axis), averaged across genomic sequence targets.
+
+```{r histog_detailed_outcomes_k562, eval=TRUE, fig.height=3, fig.width=5.7}
+# control k562 only
+k562 = data.indels3[sample_group %in% c("K562")]
+# sparsify axis labels
+k562[, indel_class_lab := gsub("D|I", "", indel_class)]
+k562[as.numeric(indel_class_lab) > 10 & as.numeric(indel_class_lab) %% 2 == 1, indel_class_lab := ""]
+k562 = unique(k562[,.(indel_class, indel_class_mean_general,
+                                             sample_group,indel_class_lab)])
+
+cnt.bar.plot3 = ggplot(aes(x = indel_class, y = indel_class_mean_general,
+                           fill = sample_group), 
+                       data = k562) +
+  theme_bw() +
+  geom_col(color = "white") +
+  ylab("Mean frequency of outcome") +
+  theme(plot.title = element_text(size=14,face="bold"),
+        axis.title = element_text(size=14,face="bold"),
+        axis.title.y = element_text(size=12),
+        axis.title.x = element_text(hjust = 1.2,size=0),
+        axis.text = element_text(size = 10),
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+        legend.position = "none",
+        strip.text.y = element_text(angle = 0),
+        panel.grid.minor = element_line(size = 0),
+        panel.grid.major.x = element_line(size = 0),
+        plot.background = element_rect(fill="transparent", colour="transparent")) +
+  scale_x_discrete(labels = k562$indel_class_lab,
+                   breaks = k562$indel_class) +
+  labs(fill = "", color = "")
+  
+
+{
+  grid.newpage()
+  ggdraw() +
+    draw_plot(cnt.bar.plot3 +
+                scale_color_manual(values=trex_colors)+
+                scale_fill_manual(values=trex_colors),
+              x = 0, y = 0.1, width = 1, height = 0.9) +
+    draw_plot(grid.lines(x = c(0,1), y = c(0.01, 0.01),
+                         gp=gpar(size=2)),
+              x = .108, y = 0.12, width = .635, height = 1) +
+    draw_plot(textGrob("Deletions", gp=gpar(fontsize=12)),
+              x = .35, y = -0.08, width = .15, height = .3) +
+    draw_plot(grid.lines(x = c(0,1), y = c(0.01, 0.01),
+                         gp=gpar(size=2)),
+              x = .78, y = 0.12, width = .205, height = 1) +
+    draw_plot(textGrob("Insertions", gp=gpar(fontsize=12)),
+              x = .8, y = -0.08, width = .15, height = .3)
+  }
+plot_count = my.ggsave(plot_count, name = "Figure_3A", width = 5.7, height = 3, units = "in")
+```
+
+```{r}
+Sys.Date. = Sys.Date()
+Sys.Date.
+session_info. = devtools::session_info()
+session_info.
+Sys.time() - start_time
+```

@@ -1,0 +1,162 @@
+---
+title: "InterPro_domains_for_gRNA"
+author: "Vitalii Kleshchevnikov"
+date: "06/09/2018"
+output: html_document
+---
+
+```{r setup}
+start_time = Sys.time()
+
+suppressPackageStartupMessages({
+  library(data.table)
+  library(ggplot2)
+  library(cowplot)
+  library(grid)
+  library(Biostrings)
+  library(R.utils)
+  library(ensembldb)
+  library(EnsDb.Hsapiens.v75)
+})
+source("./r_utils/myggpairs.R")
+source("./r_utils/loadFromFARM.R")
+source("./r_utils/readIndelSummaries.R") 
+source("./r_utils/dominantIndel.R")
+source("./r_utils/findIndelLevels.R")
+source("./r_utils/Other.R")
+source("./r_utils/addIndelRepl.R") 
+source("./r_utils/selectCellLines.R")
+source("./r_utils/predictedK562Files.R")
+source("./r_utils/renameSampleGroup.R")
+source("./r_utils/readDPI7OneCellLine.R")
+source("./r_utils/mapGRNA2protein.R")
+source("./r_utils/plotEffByDomain.R")
+source("./r_utils/loadGRNApos.R")
+
+plot_count = 1
+my.ggsave = function(plot_count, name = NULL, width = NA, height = NA,
+                     units = c("in", "cm", "mm"), device = "svg"){
+  if(is.null(name)) 
+    name = paste0("../results/plots/", plot_count, ".", device) else
+      name = paste0("../results/plots/", name, ".", device)
+    dir = gsub(basename(name),"", name)
+    if(!dir.exists(dir)) dir.create(dir, recursive = T)
+    ggsave(name, device = device, width = width, height = height, units = units)
+    plot_count + 1
+} # usage plot_count = my.ggsave(plot_count)
+
+## Find data
+data.base.dir = "../data/summary_data/"
+```
+
+```{r essential_genes}
+essential_genes = fread("../data/summary_data/grna_domains/CEGv2.txt", stringsAsFactors = FALSE)
+```
+
+```{r load_kosuke_gRNA_positions}
+data.dir = "../data/summary_data/grna_domains/"
+kosuke_gRNA_pos = loadGRNApos_kosuke(data.dir, essential_genes$Gene)
+# subsample for testing kosuke_gRNA_pos = kosuke_gRNA_pos[sample.int(length(kosuke_gRNA_pos), 100)]
+```
+
+```{r load_gecko2_gRNA_positions}
+gecko2_gRNA_pos = loadGRNApos_gecko2(data.dir, essential_genes$Gene)
+#subsample for testing gecko2_gRNA_pos = gecko2_gRNA_pos[sample.int(length(gecko2_gRNA_pos), 100)]
+```
+
+```{r load_avana_gRNA_positions}
+avana_gRNA_pos = loadGRNApos_avana(data.dir, essential_genes$Gene)
+#subsample for testing avana_gRNA_pos = avana_gRNA_pos[sample.int(length(avana_gRNA_pos), 100)]
+```
+
+```{r mapping_kosuke}
+mapped_dir = "../data/summary_data/grna_domains/"
+kosuke_file = "kosuke.tsv"
+# find names of InterPro attributes and filters
+keytypes(EnsDb.Hsapiens.v75)
+columns(EnsDb.Hsapiens.v75)
+if(file.exists(paste0(mapped_dir, kosuke_file))) {
+  kosuke_gnm_prt_simp = fread(paste0(mapped_dir, kosuke_file), stringsAsFactors = TRUE)
+  kosuke_gnm_prt = fread(paste0(mapped_dir, "/all_domains", kosuke_file), stringsAsFactors = TRUE)
+} else {
+  # map genomic coordinates to protein coordinates - kosuke
+  kosuke_gnm_prt = mapGRNA2protein(gRNA_pos = kosuke_gRNA_pos, EnsDb.Hsapiens.v75)
+  kosuke_gnm_prt_simp = kosuke_gnm_prt$gnm_prt_simp
+  fwrite(kosuke_gnm_prt_simp, 
+         file = paste0(mapped_dir, kosuke_file),
+         sep = "\t")
+  fwrite(kosuke_gnm_prt$gnm_prt, 
+         file = paste0(mapped_dir, "/all_domains", kosuke_file),
+         sep = "\t")
+}
+print("How many gRNAs not mapped to proteins (Kosuke)?")
+kosuke_gnm_prt[, .(N = uniqueN(ID)), by = .(protein_id != "")]
+```
+
+```{r mapping_gecko2}
+gecko2_file = "gecko2.tsv"
+if(file.exists(paste0(mapped_dir, gecko2_file))) {
+  gecko2_gnm_prt_simp = fread(paste0(mapped_dir, gecko2_file), stringsAsFactors = TRUE)
+  gecko2_gnm_prt = fread(paste0(mapped_dir, "/all_domains", gecko2_file), stringsAsFactors = TRUE)
+} else {
+  gecko2_gnm_prt = mapGRNA2protein(gRNA_pos = gecko2_gRNA_pos, EnsDb.Hsapiens.v75)
+  gecko2_gnm_prt_simp = gecko2_gnm_prt$gnm_prt_simp
+  fwrite(gecko2_gnm_prt_simp, 
+         file = paste0(mapped_dir, gecko2_file),
+         sep = "\t")
+  fwrite(gecko2_gnm_prt$gnm_prt, 
+         file = paste0(mapped_dir, "/all_domains", gecko2_file),
+         sep = "\t")
+}
+print("How many gRNAs not mapped to proteins (GeCKO2)?")
+gecko2_gnm_prt[, .(N = uniqueN(ID)), by = .(protein_id != "")]
+```
+
+```{r mapping_avana}
+avana_file = "avana.tsv" 
+if(file.exists(paste0(mapped_dir, avana_file))) {
+  avana_gnm_prt_simp = fread(paste0(mapped_dir, avana_file), stringsAsFactors = TRUE)
+  avana_gnm_prt = fread(paste0(mapped_dir, "/all_domains", avana_file), stringsAsFactors = TRUE)
+} else {
+  avana_gnm_prt = mapGRNA2protein(gRNA_pos = avana_gRNA_pos, EnsDb.Hsapiens.v75)
+  avana_gnm_prt_simp = avana_gnm_prt$gnm_prt_simp
+  fwrite(avana_gnm_prt_simp, 
+         file = paste0(mapped_dir, avana_file),
+         sep = "\t")
+  fwrite(avana_gnm_prt$gnm_prt, 
+         file = paste0(mapped_dir, "/all_domains", avana_file),
+         sep = "\t")
+}
+print("How many gRNAs not mapped to proteins (Avana)?")
+avana_gnm_prt[, .(N = uniqueN(ID)), by = .(protein_id != "")]
+```
+
+## Plot In.Frame.Percentage vs gRNA efficacy (X1)
+
+```{r fig.height=9, fig.width=8.6}
+# rbind 3 datasets to plot all in one plot
+gecko2_gnm_prt_simp[, dataset := "GeCKO2"]
+kosuke_gnm_prt_simp[, dataset := "Yusa 1.0"]
+avana_gnm_prt_simp[, dataset := "Avana"]
+gnm_prt_simp = rbindlist(list(gecko2_gnm_prt_simp, kosuke_gnm_prt_simp, avana_gnm_prt_simp))
+gnm_prt_simp[, dataset := factor(dataset,
+                                 levels = c("GeCKO2", "Yusa 1.0", "Avana"))]
+X1plot_dom = plotEffByFactor(gnm_prt_simp, formula = X1 ~ In.Frame.Percentage, 
+                           fact_col = ~ targets_domain_lab, fact_row = ~ dataset,
+                           binwidth = NULL, bins = 50,
+                           cor_lab_pos_x = 40, cor_lab_pos_y = 2) +
+  xlim(10, 70) + ylim(-0.5, 3)
+X1plot_dom
+plot_count = my.ggsave(plot_count, name = "Figure_S25",
+                       width = 8.6, height = 9, units = "in")
+plot_count = my.ggsave(plot_count, name = "Figure_S25",
+                       width = 8.6, height = 9, units = "in", device = "png")
+```
+
+```{r}
+Sys.Date. = Sys.Date()
+Sys.Date.
+session_info. = devtools::session_info()
+session_info.
+Sys.time() - start_time
+```

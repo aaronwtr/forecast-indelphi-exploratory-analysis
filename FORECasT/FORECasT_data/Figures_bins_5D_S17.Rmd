@@ -1,0 +1,174 @@
+---
+title: "Figure 5D. The type of most frequent outcome per gRNA is consistent across cell lines, with limited changes"
+author: "Vitalii Kleshchevnikov"
+date: "06/07/2018"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup}
+start_time = Sys.time()
+source("./r_utils/installMissingPackages.R")
+packages = c("R.utils", "data.table", "ggplot2", "GGally", "cowplot", "grid", "devtools", "svglite")
+installMissingPackages(packages)
+
+suppressPackageStartupMessages({
+  library(R.utils)
+  library(data.table)
+  library(ggplot2)
+  library(cowplot)
+  library(grid)
+})
+source("./r_utils/myggpairs.R")
+source("./r_utils/loadFromFARM.R")
+source("./r_utils/readIndelSummaries.R") 
+source("./r_utils/dominantIndel.R")
+source("./r_utils/findIndelLevels.R")
+source("./r_utils/Other.R")
+source("./r_utils/addIndelRepl.R") 
+source("./r_utils/selectCellLines.R")
+source("./r_utils/predictedK562Files.R")
+source("./r_utils/renameSampleGroup.R")
+source("./r_utils/plotFreqIndels5D.R")
+source("./r_utils/caclMostFreqIndel5D.R")
+plot_count = 1
+my.ggsave = function(plot_count, name = NULL, width = NA, height = NA,
+                     units = c("in", "cm", "mm"), device = "svg"){
+  if(is.null(name)) 
+    name = paste0("../results/plots/", plot_count, ".", device) else
+      name = paste0("../results/plots/", name, ".", device)
+    dir = gsub(basename(name),"", name)
+    if(!dir.exists(dir)) dir.create(dir, recursive = T)
+    ggsave(name, device = device, width = width, height = height, units = units)
+    plot_count + 1
+} # usage plot_count = my.ggsave(plot_count)
+
+## Find data
+data.base.dir = "../data/summary_data/"
+data.set.dir = "more_indel_summaries/"
+data.dir = paste0(data.base.dir, data.set.dir) 
+data.files = paste0(data.dir, list.files(data.dir))
+```
+
+## Load and process data
+
+```{r load_all_cell_lines}
+####/ set some options
+N_reads_filter = 20
+inv = F
+# remove remove_2A_TREX2?
+remove_2A_TREX2 = T
+
+# define order of variables and colors for plots
+source("./r_utils/order_var_script.R")
+
+# choose thresholds for dominant indel
+dominant_indel_freq = 0.2 # individual indels
+dominant_indel_class_freq = 0.4 # all indels from one category
+# normalise by the number of guides in each category in control K562?
+normalise_guides = F
+####\
+
+# select relevant files:
+new.DPI7.data.files = selectCellLinesDPI7(data.files)
+
+real_guides_20 = fread("../data/summary_data/real_guides_in_dpi7_samples_above20mutreads.txt", stringsAsFactors = F, header = F)
+data = readIndelSummaries(new.DPI7.data.files, guide_list = real_guides_20$V1, inv = inv)
+
+# how many guides per sample are real guides with 20/50 gene-targetting guides?
+guidesPerSample(data)
+# N reads filter and select guides present in all samples
+data = inAllSamples(data[Total_reads >= N_reads_filter],.(Oligo_Id))
+guidesPerSample(data)
+Sys.time() - start_time
+```
+
+```{r data_processing_replic_consolid}
+# renames samples for publication
+data = renameSampleGroup(data)
+data_repl = copy(data)
+# calculate means of normalised and cumulative reads across replicates
+data = addIndelRepl(data)
+  
+# sanity check - uncomment when reproducing using different data
+#unique(data[Oligo_Id == Oligo_Id[1] & 
+#              Most_Common_Indel == Most_Common_Indel[1] &
+#              sample_group == "K562"]) # should be one line
+#data[, sum(sum_MCI_Reads) > sum_Total_reads, by = .(Oligo_Id, sample_group)][,mean(V1)] # should be 0
+
+# text for paper  
+data_total_reads = unique(data[sample_group %in% "K562",.(Oligo_Id, sample_group,sum_Total_reads)])
+```
+
+## Find dominant classes for each guide in each sample
+
+```{r dom_class, fig.height=4.3, fig.width=8.8}
+# remove trex2 2a from main figures
+if(remove_2A_TREX2) data_main = data_repl[!sample_group == "2A_TREX2"]
+data.indels1.no.cnt = caclMostFreqIndel5D(data_main, ref_sample_group = "K562",
+                               dominant_indel_freq = 0.0, normalise_guides = F,
+                               class_of_dominant_indel_levels = class_of_dominant_indel_levels,
+                               few_indel_classes_levels = few_indel_classes_levels, 
+                               sample_group_levels = sample_group_levels)
+```
+
+## Figure 5D. The type of most frequent outcome per gRNA is consistent across cell lines, with limited changes.
+
+The number of most frequent indels for a gRNAs (color) in each class (x-axis) in cell lines examined (panels) compared to K562 (y-axis).  
+
+```{r Fig_5D_grey, fig.height=4.5, fig.width=6.2}
+indels.plot = plotFreqIndels5D(data.indels1.no.cnt, 
+                               legend_lab = paste0("Number of gRNAs \n(",guidesPerSampleGroup(data.indels1.no.cnt)[, unique(N_guides)]," total)"),
+                               cols = c(colorRampPalette(c("white", "#2077B4"), bias = 4)(10)))
+indels.plot
+  
+plot_count = my.ggsave(plot_count, name = "Figure_5D", width = 6.2, height = 4.5, units = "in")
+```
+
+### Figure S17. TREX2 overexpression effects on indel class frequencies.
+
+Per-gRNA event frequencies change upon TREX2 expression. Number of individual indels (y-axis) as a percentage of all mutations observed for their gRNA (x-axis) separated by mutation class (rows), and Cas9/TREX2 construct (columns).  
+
+```{r all_freq_all_cells, fig.height=7.5, fig.width=9}
+all_freq_all_cells = unique(data[, .(Oligo_Id, Most_Common_Indel, few_indel_classes, Norm_MCI_Reads, sample_group)])
+all_freq_all_cells = all_freq_all_cells[sample_group %in% c("K562", "TREX2", "2A_TREX2")]
+
+# rename samples to more informative labels
+all_freq_all_cells[sample_group == "K562", sample_group := "Cas9"]
+all_freq_all_cells[sample_group == "TREX2", sample_group := "Cas9_TREX2"]
+all_freq_all_cells[sample_group == "2A_TREX2", sample_group := "Cas9_2A_TREX2"]
+
+
+all_freq_all_cells.plot = ggplot(all_freq_all_cells, aes(x = Norm_MCI_Reads, fill = few_indel_classes))+ 
+  geom_histogram(binwidth = 0.05, pad = TRUE, col="white", size = 1, alpha = 1) +
+  facet_grid(few_indel_classes~sample_group) +
+  xlab("Percentage of mutations per gRNA") + 
+  ylab("Number of mutations") +
+  theme_bw() + scale_y_log10(breaks = c(10, 1000, 100000), labels = c("10", "1,000", "100,000")) +
+  scale_x_continuous(labels = scales::percent) +
+  theme(legend.title = element_text(size = 12,face="bold"),
+        legend.text = element_text(size = 12), 
+        legend.position = "none",
+        plot.title = element_text(size=16,face="bold"),
+        axis.title=element_text(size=12,face="bold"),
+        axis.text = element_text(size=9),
+        panel.grid.minor = element_line(size = 0),
+        panel.grid.major = element_line(size = 0.2),
+        strip.text = element_text(size=12),
+        strip.text.y = element_text(angle = 0))+
+  scale_color_manual(values=indel_colors)+
+  scale_fill_manual(values=indel_colors)+
+  labs(fill = "")
+all_freq_all_cells.plot 
+plot_count = my.ggsave(plot_count, name = "Figure_S17", width = 9, height = 7.5, units = "in")
+plot_count = my.ggsave(plot_count, name = "Figure_S17", width = 9, height = 7.5, units = "in", device = "png")
+```
+
+```{r}
+Sys.Date. = Sys.Date()
+Sys.Date.
+session_info. = devtools::session_info()
+session_info.
+Sys.time() - start_time
+```
