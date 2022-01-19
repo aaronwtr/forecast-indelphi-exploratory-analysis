@@ -183,7 +183,7 @@ CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //Where do you want the output binaries to install to?
-INDELMAP_OUTPUT_DIR:STRING=C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/forecast-indelphi-exploratory-analysis/FORECasT/FORECasT_data/indel_analysis/indelmap/bin
+INDELMAP_OUTPUT_DIR:STRING=/~/desktop/Nanobiology/msc/mep/forecast-indelphi-exploratory-analysis/FORECasT/FORECasT_data/indel_analysis/indelmap
 
 //No help, variable specified on the command line.
 INDEL_OUTPUT_DIR:UNINITIALIZED=/usr/local/bin

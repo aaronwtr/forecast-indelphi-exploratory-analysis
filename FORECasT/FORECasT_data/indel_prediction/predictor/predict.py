@@ -15,7 +15,7 @@ from predictor.model import computePredictedProfile, readTheta, setFeaturesDir, 
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 
 INDELGENTARGET_EXE = os.getenv("INDELGENTARGET_EXE", "C:/Users/fa9/postdoc/indelmap/build/Release/indelgentarget.exe")
-DEFAULT_MODEL = 'model_output_10000_0.01000000_0.01000000_-0.607_theta.txt_cf0.txt' 
+DEFAULT_MODEL = 'FORECasT/FORECasT_data/indel_prediction/predictor/model_output_10000_0.01000000_0.01000000_-0.607_theta.txt'
 
 def setIndelGenTargetExeLoc(val):
     global INDELGENTARGET_EXE

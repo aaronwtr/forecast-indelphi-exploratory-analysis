@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/FORECasT/FORECasT_data/indel_prediction" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/FORECasT/FORECasT_data/selftarget_pyutils" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/FORECasT/FORECasT_data/indel_prediction/predictor" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
