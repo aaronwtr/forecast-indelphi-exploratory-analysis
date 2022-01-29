@@ -6,6 +6,7 @@ import subprocess
 import os
 import io
 import random
+import matplotlib.pyplot as plt
 
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 from predictor.model import readTheta, computePredictedProfile
@@ -144,4 +145,5 @@ if __name__ == '__main__':
     test_target_seq = 'CTGAGTAGCTATGCGGCCAGCAGCGAGACGCTCAGCGTGAAGCGGCAGTATCCCTCTTTCCTGCGCACCATCCCCAATC'
     test_pam_idx = 42
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, test_target_seq, test_pam_idx)
-    plotProfiles(profile, rep_reads, test_target_seq, test_pam_idx)
+    plotProfiles([profile], [rep_reads], [test_pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
+    plt.show()
