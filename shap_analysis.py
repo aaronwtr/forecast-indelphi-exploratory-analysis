@@ -41,12 +41,6 @@ def boston_housing_example():
     shap.plots.scatter(shap_values[:, "AGE"], color=shap_values)
 
 
-def read_oligos(OLIGO_FILE):
-    oligo_data = pd.read_pickle(OLIGO_FILE)
-
-    return oligo_data
-
-
 def getProfileCounts(profile):
     total = sum([profile[x] for x in profile])
     if total == 0:
@@ -141,9 +135,10 @@ def predictMutations(theta_file, target_seq, pam_idx, add_null=True):
 
 
 if __name__ == '__main__':
-    df = read_oligos("FORECasT/train/Tijsterman_Analyser/Oligo_40")
+    training_oligo = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/Oligo_40")
     test_target_seq = 'CTGAGTAGCTATGCGGCCAGCAGCGAGACGCTCAGCGTGAAGCGGCAGTATCCCTCTTTCCTGCGCACCATCCCCAATC'
     test_pam_idx = 42
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, test_target_seq, test_pam_idx)
+
     plotProfiles([profile], [rep_reads], [test_pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
     plt.show()
