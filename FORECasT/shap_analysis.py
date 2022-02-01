@@ -1,7 +1,6 @@
-import shap
-import xgboost as xgb
 import pandas as pd
 import numpy as np
+from shap import KernelExplainer
 import subprocess
 import os
 import io
@@ -16,29 +15,9 @@ from selftarget.profile import fetchIndelSizeCounts
 from selftarget.view import plotProfiles
 
 '''
-In the following file, we will use the SHAP package to analyze an example XGBoost model. Consequently, we attempt to 
-extent the shap explanation to the FORECasT model.
-
-Feature explanations Boston housing example:
-https://www.cs.toronto.edu/~delve/data/boston/bostonDetail.html 
+In this script, the FORECasT pre-trained model is implemented and SHAP analysis is consequently performed on top of this
+implementation.
 '''
-
-
-def boston_housing_example():
-    X, y = shap.datasets.boston()
-    print('Input data:')
-    print(X.head())
-    print('Output data (house price in $1.000):')
-    print(y)
-
-    model = xgb.XGBRegressor().fit(X, y)
-
-    explainer = shap.Explainer(model)
-    shap_values = explainer(X)
-    print('shap values:')
-    print(shap_values)
-
-    shap.plots.scatter(shap_values[:, "AGE"], color=shap_values)
 
 
 def getProfileCounts(profile):
@@ -134,12 +113,26 @@ def predictMutations(theta_file, target_seq, pam_idx, add_null=True):
     return p_predict, rep_reads, in_frame_perc
 
 
+def getSHAPValue(model, feature_data, link='logit'):
+    explainer = KernelExplainer(model, feature_data, link=link)
+    shap_value = explainer.shap_values(feature_data)
+
+    return shap_value
+
+
 if __name__ == '__main__':
+    # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
     guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
-    # test_target_seq = 'CTGAGTAGCTATGCGGCCAGCAGCGAGACGCTCAGCGTGAAGCGGCAGTATCCCTCTTTCCTGCGCACCATCCCCAATC'
-    target_seq = guideset['TargetSequence'][0]  # second index indicates oligo under inspection. if we want to consider
+    target_seq = guideset['TargetSequence'][19]  # second index indicates oligo under inspection. if we want to consider
                                                 # all oligo's, make for loop.
-    pam_idx = guideset['PAM index'][0]
+    pam_idx = guideset['PAM Index'][19]
+    feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][19][0:5]) + '_' + str(guideset['ID'][19][5:]))
+    small_feature_data = feature_data.iloc[0:5, 0:5]
+
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
     plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
     plt.show()
+
+    shap_value = getSHAPValue(profile, small_feature_data)
+
+    print(shap_value)

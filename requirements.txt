@@ -8,7 +8,6 @@ cycler==0.10.0
 Flask==1.0.2
 Flask-Cors==3.0.8
 idna==2.8
-
 importlib-metadata==0.19
 itsdangerous==0.24
 Jinja2==2.10
@@ -18,9 +17,9 @@ matplotlib==2.2.2
 mongoengine==0.17.0
 more-itertools==7.2.0
 mpld3==0.3
-numpy==1.14.5
+numpy~=1.21.5
 packaging==19.1
-pandas==0.23.4
+pandas~=1.3.5
 pluggy==0.12.0
 -e git+https://github.com/felicityallen/SelfTarget.git@8d69d015abdd7e0a70984ba58536676d72b16d62#egg=predictor&subdirectory=indel_prediction
 py==1.8.0
@@ -37,3 +36,7 @@ urllib3==1.24.3
 wcwidth==0.1.7
 Werkzeug==0.14.1
 zipp==0.5.2
+scikit-learn~=0.24.1
+setuptools~=47.1.0
+shap~=0.40.0
+plotly~=5.5.0

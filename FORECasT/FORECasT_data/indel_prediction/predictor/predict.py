@@ -16,7 +16,7 @@ from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesDat
 
 REPO_PATH = "C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/forecast-indelphi-exploratory-analysis/FORECasT/"
 INDELGENTARGET_EXE = os.getenv("INDELGENTARGET_EXE", str(REPO_PATH) + "FORECasT_data/indel_analysis/indelmap/build/indelgentarget.exe")
-DEFAULT_MODEL = 'FORECasT/FORECasT_data/indel_prediction/predictor/model_output_10000_0.01000000_0.01000000_-0.607_theta.txt'
+DEFAULT_MODEL = "FORECasT/FORECasT_data/indel_prediction/predictor/model_output_10000_0.01000000_0.01000000_-0.607_theta.txt"
 
 def setIndelGenTargetExeLoc(val):
     global INDELGENTARGET_EXE
