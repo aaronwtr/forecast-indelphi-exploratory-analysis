@@ -4,11 +4,11 @@ import pandas as pd
 
 
 PEARSON_PLOT_OUTPUT_DIR = 'pearson_ccs_FORECasT/'
-FEATURE_DATA_PREFIX = 'pearson_ccs_'
+FEATURE_DATA_PREFIX = '_pccs_'
 FEATURE_OUTPUT_PREFIX = 'pearson_cc_'
 
 
-def get_pearson_ccs(feature_names, feature_data, mutation):
+def get_pearson_ccs(feature_names, feature_data, mutation, method):
     pearson_ccs = {}
     feature_names_copy = feature_names.copy()
     for feature_a in feature_names:
@@ -19,7 +19,7 @@ def get_pearson_ccs(feature_names, feature_data, mutation):
             pearson_cc = np.corrcoef(feat_a_data, feat_b_data)[0, 1]
             pearson_ccs[(feature_a, feature_b)] = pearson_cc
 
-    with open(str(FEATURE_DATA_PREFIX) + str(mutation) + '.pkl', 'wb') as f:
+    with open(str(method) + '_pccs' + str(mutation) + '.pkl', 'wb') as f:
         pd.to_pickle(pearson_ccs, f)
 
     return pearson_ccs
