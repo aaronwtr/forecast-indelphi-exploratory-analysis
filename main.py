@@ -1,12 +1,10 @@
 import pandas as pd
 import os
-
-from matplotlib import pyplot as plt
-
-import pearson_correlation as pearson
 import numpy as np
 import plotly.express as px
-import seaborn as sns
+
+import pearson_correlation as pearson
+
 
 def indelphi_pcc():
     data = pd.read_pickle('inDelphi/test_inDelphi.pkl')
@@ -61,7 +59,12 @@ def heatmap(pccs, model):
 
     fig = px.imshow(df,
                     labels=dict(x='Feature 2', y='Feature 1', color='Correlation'),
-                    color_continuous_scale=px.colors.sequential.Plasma)
+                    color_continuous_scale=px.colors.sequential.Plasma
+                    )
+
+    # TO-DO: Figure out how to increase resolution of heatmap.
+    # Idea 1: Make N plots rather than 1.
+    # Idea 2: Increase threshold of selecting significant correlations.
 
     fig.update_layout(title='Pearson Correlation Heatmap of %s Features' % model)
     fig.show()

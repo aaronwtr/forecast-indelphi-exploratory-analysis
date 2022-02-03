@@ -6,6 +6,7 @@ import os
 import io
 import random
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 from predictor.model import readTheta, computePredictedProfile
@@ -131,8 +132,8 @@ if __name__ == '__main__':
 
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
     plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
-    plt.show()
+    # plt.show()
 
-    shap_value = getSHAPValue(profile, small_feature_data)
+    shap_value = tqdm(getSHAPValue(predictMutations(DEFAULT_MODEL, target_seq, pam_idx), small_feature_data))
 
     print(shap_value)
