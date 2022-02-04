@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import random
+from tqdm import tqdm
+import warnings
 
 from mpi4py import MPI
 
@@ -126,16 +128,28 @@ def computeKLObjAndGradients(theta, guideset, sample_names, feature_columns, reg
     N = len(feature_columns)
     Q, jac, minQ, maxQ = 0.0, np.zeros(N), 0.0, 1000.0
     Qs = []
-    for oligo_id in guideset:
-        data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_id][0:5]) + '_' +
-                              str(guideset['ID'][oligo_id][5:]))
+    guideset_split = np.array([i.split('\t') for i in guideset])
+    for i in tqdm(range(len(guideset))):
+        try:
+            data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset_split[i][0][0:5]) + '_' +
+                                  str(guideset_split[i][0][5:]))
+        except FileNotFoundError:
+            continue
+
         Y = data['Frac Sample Reads']
+
+        # TO-DO: Getting feature columns ['Subset', 'Comments', 'PAM Index', 'Strand'] not in data error. Debug this.
+        # Idea 1: Print data and check all columns
+
         data['ThetaX'] = data.apply(calcThetaX, axis=1, args=(theta, feature_columns))
         sum_exp = np.exp(data['ThetaX']).sum()
         Q_reg, grad_reg = computeRegularisers(theta, feature_columns, reg_const, i1_reg_const)
         tmpQ = (np.log(sum_exp) + sum(Y * (np.log(Y) - data['ThetaX'])) + Q_reg)
         Q += tmpQ
         Qs.append(tmpQ)
+
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+
         jac += np.matmul(np.exp(data['ThetaX']), data[feature_columns].astype(int)) / sum_exp - np.matmul(Y, data[
             feature_columns].astype(int)) + grad_reg
     return Q, jac, Qs

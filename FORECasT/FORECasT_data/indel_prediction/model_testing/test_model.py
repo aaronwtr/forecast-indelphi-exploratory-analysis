@@ -35,9 +35,9 @@ def getModelDevGuideSet(guideset_file):
     return np.array(guideset)
 
 
-def loadFeatureLabels(oligo_id, guideset):
-    data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_id][0:5]) + '_' +
-                              str(guideset['ID'][oligo_id][5:]))
+def loadFeatureLabels(guideset):
+    data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][19][0:5]) + '_' +
+                          str(guideset['ID'][19][5:]))
     return [x for x in data.columns if
             x not in ['Oligo ID', 'Indel', 'Frac Sample Reads', 'Left', 'Right', 'Inserted Seq']]
 
@@ -45,13 +45,13 @@ def loadFeatureLabels(oligo_id, guideset):
 def runAnalysis(guideset_file):
     guideset = getModelDevGuideSet(guideset_file)
     guideset_df = pd.read_csv(guideset_file, sep='\t')
-
+    # full_oligo_ids = list(guideset_df['ID'].values)
     # sample_names = ['ST_Feb_2018_CAS9_12NA_1600X_DPI7', 'ST_June_2017_K562_800x_LV7A_DPI7',
     #                'ST_June_2017_K562_800x_LV7B_DPI7']
 
     sample_names = os.listdir('FORECasT/train/Tijsterman_Analyser')
-    guideset_columns = list(guideset_df.columns)
-    feature_columns = guideset_columns[-4:]
+    # guideset_columns = list(guideset_df.columns)
+    feature_columns = loadFeatureLabels(guideset_df)
     print(feature_columns)
     if NUM_OLIGO != -1:
         guideset = random.sample([x for x in guideset], NUM_OLIGO)
