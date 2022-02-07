@@ -129,7 +129,8 @@ def computeKLObjAndGradients(theta, guideset, sample_names, feature_columns, reg
     Q, jac, minQ, maxQ = 0.0, np.zeros(N), 0.0, 1000.0
     Qs = []
     guideset_split = np.array([i.split('\t') for i in guideset])
-    for i in tqdm(range(len(guideset))):
+    # for i in tqdm(range(len(guideset))):
+    for i in tqdm(range(100)):
         try:
             data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset_split[i][0][0:5]) + '_' +
                                   str(guideset_split[i][0][5:]))
@@ -182,6 +183,7 @@ def assessFit(theta, guideset, sample_names, feature_columns, cv_idx=0, reg_cons
         else:
             done = False
             theta, done = comm.bcast((theta, done), root=0)
+
     return Q, jac, Qs
 
 
@@ -223,6 +225,8 @@ def recordProfiles(output_dir, theta, guideset, feature_columns):
 def trainModelParallel(guideset, sample_names, feature_columns, theta0, cv_idx=0):
     guidesubsets = [guideset[i:len(guideset):mpi_size] for i in range(mpi_size)]
     if theta0 is None: theta0 = np.array([np.random.normal(loc=0.0, scale=1.0) for x in feature_columns])
+    sample_names = np.array(sample_names)
+    feature_columns = np.array(feature_columns)
     args = (guidesubsets[mpi_rank], sample_names, feature_columns, cv_idx, REG_CONST, I1_REG_CONST)
     if mpi_rank == 0:
         result = minimize(assessFit, theta0, args=args, method='L-BFGS-B', jac=True, tol=1e-4)

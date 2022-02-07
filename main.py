@@ -42,7 +42,7 @@ def forecast_pcc():
     return pearson_ccs
 
 
-def heatmap(pccs, model):
+def heatmap(pccs, model, sliced=False):
     feature_keys = list(pccs.keys())
     feature_1 = [feature_keys[i][0] for i in range(len(feature_keys))]
     feature_2 = [feature_keys[i][1] for i in range(len(feature_keys))]
@@ -53,21 +53,40 @@ def heatmap(pccs, model):
     for key, value in pccs.items():
         df.loc[key[0], key[1]] = value
 
-    # sns.heatmap(df, annot=True, fmt='.2f', cmap='coolwarm')
-    # plt.title(model + 'Features PCC Heatmap')
-    # plt.show()
+    if not sliced:
+        df_row_slices = []
+        df_column_slices = []
 
-    fig = px.imshow(df,
-                    labels=dict(x='Feature 2', y='Feature 1', color='Correlation'),
-                    color_continuous_scale=px.colors.sequential.Plasma
-                    )
+        if df.shape[0] < df.shape[1]:
+            for i in range(df.shape[0]):
+                if i % 20 == 0:
+                    df_row_slices.append(i)
 
-    # TO-DO: Figure out how to increase resolution of heatmap.
-    # Idea 1: Make N plots rather than 1.
-    # Idea 2: Increase threshold of selecting significant correlations.
+            df_column_slices = df_row_slices.copy()
 
-    fig.update_layout(title='Pearson Correlation Heatmap of %s Features' % model)
-    fig.show()
+
+        else:
+            for i in range(df.shape[1]):
+                if i % 20 == 0:
+                    df_column_slices.append(i)
+
+            df_row_slices = df_column_slices.copy()
+
+        for i in range(len(df_row_slices) - 1):
+            fig = px.imshow(df.iloc[df_row_slices[i]:df_row_slices[i+1], df_column_slices[i]:df_column_slices[i + 1]],
+                            labels=dict(x='Feature 2', y='Feature 1', color='Correlation'),
+                            color_continuous_scale=px.colors.sequential.Plasma
+                            )
+            fig.update_layout(title='Pearson Correlation Heatmap of %s Features' % model)
+            fig.show()
+
+    else:
+        fig = px.imshow(df,
+                        labels=dict(x='Feature 2', y='Feature 1', color='Correlation'),
+                        color_continuous_scale=px.colors.sequential.Plasma
+                        )
+        fig.update_layout(title='Pearson Correlation Heatmap of %s Features' % model)
+        fig.show()
 
 
 def main():

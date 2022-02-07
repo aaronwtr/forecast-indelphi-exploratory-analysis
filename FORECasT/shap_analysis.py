@@ -134,6 +134,7 @@ if __name__ == '__main__':
     plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
     # plt.show()
 
+
     shap_value = tqdm(getSHAPValue(predictMutations(DEFAULT_MODEL, target_seq, pam_idx), small_feature_data))
 
     print(shap_value)

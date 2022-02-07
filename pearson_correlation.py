@@ -42,7 +42,7 @@ def scatter_plot(feature_a, feature_b, feature_data, pearson_ccs):
     fig.write_image(str(PEARSON_PLOT_OUTPUT_DIR) + str(FEATURE_OUTPUT_PREFIX) + str(feature_a) + '_' + str(feature_b) + '.png')
 
 
-def get_significant_correlations(pearson_ccs, lower_threshold=0.5, upper_threshold=0.95):
+def get_significant_correlations(pearson_ccs, lower_threshold=0.75, upper_threshold=0.95):
     significant_correlations = {}
     for key, value in pearson_ccs.items():
         if lower_threshold < abs(value) < upper_threshold:
