@@ -43,6 +43,7 @@ def scatter_plot(feature_a, feature_b, feature_data, pearson_ccs):
 
 
 def get_significant_correlations(pearson_ccs, lower_threshold=0.75, upper_threshold=0.95):
+    # TODO: Remove upper_threshold. Persist this change if the number of feature correlations does not explode.
     significant_correlations = {}
     for key, value in pearson_ccs.items():
         if lower_threshold < abs(value) < upper_threshold:

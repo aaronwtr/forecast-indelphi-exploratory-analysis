@@ -53,7 +53,7 @@ def heatmap(pccs, model, sliced=False):
     for key, value in pccs.items():
         df.loc[key[0], key[1]] = value
 
-    if not sliced:
+    if sliced:
         df_row_slices = []
         df_column_slices = []
 
@@ -63,7 +63,6 @@ def heatmap(pccs, model, sliced=False):
                     df_row_slices.append(i)
 
             df_column_slices = df_row_slices.copy()
-
 
         else:
             for i in range(df.shape[1]):
