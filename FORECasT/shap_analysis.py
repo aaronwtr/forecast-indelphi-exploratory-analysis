@@ -77,6 +77,22 @@ def predictMutationsSingle(target_seq, pam_idx, out_prefix, theta_file=DEFAULT_M
     print('Done!')
 
 
+def getKernelExplainerModelInput(instances, current_oligo):
+    # Note that the last 3 columns of the data are not features!
+
+    instances = instances.iloc[0:4]
+    model_input = instances.iloc[:, 0:instances.shape[1] - 3]
+
+    indel_idx = list(instances[:]['Indel'])
+    indices = ['Oligo_' + str(current_oligo) + '_' + i for i in indel_idx]
+
+    # set indices as the index of the feature_data dataframe
+
+    model_input.index = indices
+
+    return model_input
+
+
 def predictMutations(theta_file, target_seq, pam_idx, add_null=True):
     theta, train_set, theta_feature_columns = readTheta(theta_file)
 
@@ -114,27 +130,33 @@ def predictMutations(theta_file, target_seq, pam_idx, add_null=True):
     return p_predict, rep_reads, in_frame_perc
 
 
-def getSHAPValue(model, feature_data, link='logit'):
-    explainer = KernelExplainer(model, feature_data, link=link)
-    shap_value = explainer.shap_values(feature_data)
+def getSHAPValue(model, features, *args, link='logit'):
+    model = model(*args)
+    explainer = KernelExplainer(model, features, link=link)
+    shap = explainer.shap_values(features)
 
-    return shap_value
+    return shap
 
 
 if __name__ == '__main__':
     # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
     guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
     target_seq = guideset['TargetSequence'][19]  # second index indicates oligo under inspection. if we want to consider
-                                                # all oligo's, make for loop.
+    # all oligo's, make for loop.
     pam_idx = guideset['PAM Index'][19]
-    feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][19][0:5]) + '_' + str(guideset['ID'][19][5:]))
+    current_oligo = guideset['ID'][19][5:]
+    feature_data = pd.read_pickle(
+        "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][19][0:5]) + '_' + str(current_oligo))
     small_feature_data = feature_data.iloc[0:5, 0:5]
 
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
     plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
     # plt.show()
 
+    getKernelExplainerModelInput(feature_data, current_oligo)
 
-    shap_value = tqdm(getSHAPValue(predictMutations(DEFAULT_MODEL, target_seq, pam_idx), small_feature_data))
+    shap_value = getSHAPValue(predictMutations, small_feature_data, DEFAULT_MODEL, target_seq, pam_idx)
 
+    predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
+    
     print(shap_value)
