@@ -13,7 +13,7 @@ from predictor.model import readTheta, computePredictedProfile
 from predictor.predict import DEFAULT_MODEL, predictMutations, INDELGENTARGET_EXE, fetchRepReads
 from selftarget.indel import tokFullIndel
 from selftarget.profile import fetchIndelSizeCounts
-from selftarget.view import plotProfiles
+from selftarget.view import plotProfiles, getAvgPreds
 
 '''
 In this script, the FORECasT pre-trained model is implemented and SHAP analysis is consequently performed on top of this
@@ -150,13 +150,16 @@ if __name__ == '__main__':
     small_feature_data = feature_data.iloc[0:5, 0:5]
 
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
-    plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], title='In Frame: %.1f%%' % in_frame)
+    plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo, title='In Frame: %.1f%%' % in_frame)
     # plt.show()
 
-    getKernelExplainerModelInput(feature_data, current_oligo)
+    model_input = getKernelExplainerModelInput(feature_data, current_oligo)
+    print(model_input)
+    repair_outcome_freqs = getAvgPreds([profile], current_oligo)
+    print(repair_outcome_freqs)
+
+    # TODO: Nicely format the model output in such a way that it can be read by the SHAP library. See iPad notes.
 
     shap_value = getSHAPValue(predictMutations, small_feature_data, DEFAULT_MODEL, target_seq, pam_idx)
 
     predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
-    
-    print(shap_value)
