@@ -28,8 +28,30 @@ def plotSeqLetterwise(seq, y, pam_idx, red_idxs=set(), green_idxs=set(), default
         if xloc > 0:	xloc += 0.1
         if xloc > -35 and xloc <= 35:
             PL.text(xloc,y, nt, verticalalignment='bottom', horizontalalignment='left', color=clr)
+
+
+def getAvgPreds(profiles, oligo):
+    ocounts = [getProfileCounts(p1) for p1 in profiles]
+    counts = [{indel: (cnt, indel, perc1a, perc1b) for (cnt, indel, perc1a, perc1b) in x} for x in ocounts]
+
+    num_top = 20
+    top_indels = [[y[1] for y in x[:num_top]] for x in ocounts]
+    union_top_indels = set()
+    for x in top_indels: union_top_indels = union_top_indels.union(set(x))
+
+    for indel in union_top_indels:
+        for count in counts:
+            if indel not in count:
+                count[indel] = (0, indel, 0.0, 0.0)
+    union_top_indels = [x for x in union_top_indels]
+
+    top_av_percs = [(np.mean([x[indel][-1] for x in counts]), str(oligo) + '_' + str(indel)) for indel in union_top_indels]
+    top_av_percs.sort(reverse=True)
+
+    return top_av_percs
+
     
-def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, title='', max_lines=60):
+def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='', max_lines=60):
     if len(profiles) == 0: raise Exception('Empty list of profiles')
     
     colors = ['C0', 'C2', 'C1']
@@ -56,9 +78,7 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, title='', max_
     indel_toks = [tokFullIndel(indel) for indel in union_top_indels]
     max_insert = max([0] + [toks[1] for toks in indel_toks if toks[0] == 'I'])
 
-    #Order indels by decreasing average percentage across profiles
-    top_av_percs = [(np.mean([x[indel][-1] for x in counts]),indel) for indel in union_top_indels]
-    top_av_percs.sort(reverse=True)
+    top_av_percs = getAvgPreds(profiles, oligo)
     max_indels = 6 #max_lines/len(profiles)
 
     #Figure out Trims
@@ -95,9 +115,10 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, title='', max_
     for bar1_ypos, bar1_len, label1,clr in zip(bar_ypos, bar_len, labels,colors):
         PL.barh(bar1_ypos, bar1_len, height=0.8*line_height/len(profiles), left=hist_loc, label=label1, color=clr )
         for (ypos, blen) in zip(bar1_ypos, bar1_len):
-            PL.text(hist_loc+blen+1,ypos-0.5/len(profiles)*line_height, '%.1f%%' % (blen/scale_factor))
+            PL.text(hist_loc+blen+1,ypos-0.1/len(profiles)*line_height, '%.1f%%' % (blen/scale_factor))
     xlims = (-45,hist_loc + max([max(x) for x in bar_len]) + 5)
     PL.xlim( xlims )
+
     for i, (av_perc, indel) in enumerate(top_av_percs):
         if i > max_indels: break
         PL.text(xlims[0]-5,(N-i+0.5)*line_height,indel.split('_')[0], fontweight='bold')
