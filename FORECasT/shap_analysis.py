@@ -80,13 +80,11 @@ def predictMutationsSingle(target_seq, pam_idx, out_prefix, theta_file=DEFAULT_M
 def getKernelExplainerModelInput(instances, current_oligo):
     # Note that the last 3 columns of the data are not features!
 
-    instances = instances.iloc[0:4]
+    # instances = instances.iloc[0:4]
     model_input = instances.iloc[:, 0:instances.shape[1] - 3]
 
     indel_idx = list(instances[:]['Indel'])
     indices = ['Oligo_' + str(current_oligo) + '_' + i for i in indel_idx]
-
-    # set indices as the index of the feature_data dataframe
 
     model_input.index = indices
 

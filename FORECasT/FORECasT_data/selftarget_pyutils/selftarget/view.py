@@ -32,9 +32,9 @@ def plotSeqLetterwise(seq, y, pam_idx, red_idxs=set(), green_idxs=set(), default
 
 def getAvgPreds(profiles, oligo):
     ocounts = [getProfileCounts(p1) for p1 in profiles]
-    counts = [{indel: (cnt, indel, perc1a, perc1b) for (cnt, indel, perc1a, perc1b) in x} for x in ocounts]
+    counts = [{indel: (cnt, indel, perc1a, perc1b) for (cnt, indel, perc1a, perc1b) in x if indel != '-'} for x in ocounts]
 
-    num_top = 20
+    num_top = len(counts[0])
     top_indels = [[y[1] for y in x[:num_top]] for x in ocounts]
     union_top_indels = set()
     for x in top_indels: union_top_indels = union_top_indels.union(set(x))
@@ -45,7 +45,7 @@ def getAvgPreds(profiles, oligo):
                 count[indel] = (0, indel, 0.0, 0.0)
     union_top_indels = [x for x in union_top_indels]
 
-    top_av_percs = [(np.mean([x[indel][-1] for x in counts]), str(oligo) + '_' + str(indel)) for indel in union_top_indels]
+    top_av_percs = [(np.mean([x[indel][-1] for x in counts]), 'Oligo_' + str(oligo) + '_' + str(indel)) for indel in union_top_indels]
     top_av_percs.sort(reverse=True)
 
     return top_av_percs
@@ -100,9 +100,11 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
     PL.ylim( (0,(N+1.0)*line_height) )
     bar_ypos, bar_len = [[] for x in profiles], [[] for x in profiles]
     for i, (av_perc, indel) in enumerate(top_av_percs):
+        indel = indel.split('_')[2:]
+        indel = '_'.join(indel)
         if i > max_indels: break
         for repr, cnts, rev, L1, R1, j in zip(rep_reads, counts, reverses, Ls, Rs, range(len(Rs))):
-            (cnt1,indel1,perc1a,perc1b) = cnts[indel] 
+            (cnt1,indel1,perc1a,perc1b) = cnts[indel]
             if indel in repr:
                 if R1 == 0: R1 = len(repr[indel])
                 seq = Bio.Seq.reverse_complement(repr[indel])[L1:R1] if rev else repr[indel][L1:R1]
