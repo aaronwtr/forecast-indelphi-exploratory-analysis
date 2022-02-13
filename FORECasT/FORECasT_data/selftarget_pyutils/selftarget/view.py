@@ -123,7 +123,7 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
 
     for i, (av_perc, indel) in enumerate(top_av_percs):
         if i > max_indels: break
-        PL.text(xlims[0]-5,(N-i+0.5)*line_height,indel.split('_')[0], fontweight='bold')
+        PL.text(xlims[0]-5,(N-i+0.5)*line_height,'_'.join(indel.split('_')[2:]), fontweight='bold')
         PL.plot(xlims,[(N-i)*line_height, (N-i)*line_height],'lightgrey')
     PL.plot([0,0],[0,N*line_height],'k--')
     PL.plot([hist_loc,hist_loc],[0,N*line_height],'k')

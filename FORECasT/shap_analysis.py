@@ -173,8 +173,8 @@ if __name__ == '__main__':
     small_feature_data = feature_data.iloc[0:5, 0:5]
 
     profile, rep_reads, in_frame = predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
-    plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo, title='In Frame: %.1f%%' % in_frame)
-    # plt.show()
+    plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo, title='Oligo '+ str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
+    plt.show()
 
     model_input = getKernelExplainerModelInput(feature_data, current_oligo)
     repair_outcome_freqs = getAvgPreds([profile], current_oligo)
@@ -182,8 +182,6 @@ if __name__ == '__main__':
 
     repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_dict, current_oligo)
     print(repair_outcome_freqs)
-
-    # TODO: Nicely format the model output in such a way that it can be read by the SHAP library. See iPad notes.
 
     # shap_value = getSHAPValue(predictMutations, small_feature_data, DEFAULT_MODEL, target_seq, pam_idx)
 
