@@ -128,6 +128,31 @@ def predictMutations(theta_file, target_seq, pam_idx, add_null=True):
     return p_predict, rep_reads, in_frame_perc
 
 
+def reshapeModelOutput(repair_outcome, current_oligo):
+    df_idx = []
+    df_columns = []
+    for sample in repair_outcome.keys():
+        if 'Oligo_' + str(current_oligo) in sample:
+            sample_list = sample.split('_')
+            sample_idx = sample_list[0] + '_' + sample_list[1]
+            if sample_idx not in df_idx:
+                df_idx.append(sample_idx)
+
+            indel = '_'.join(sample_list[2:])
+
+            if indel not in df_columns:
+                df_columns.append(indel)
+
+    df = pd.DataFrame(index=df_idx, columns=df_columns)
+
+    for sample, freq in repair_outcome.items():
+        sample_idx = sample.split('_')[0] + '_' + sample.split('_')[1]
+        sample_indel = '_'.join(sample.split('_')[2:])
+        df.loc[sample_idx, sample_indel] = freq
+
+    return df
+
+
 def getSHAPValue(model, features, *args, link='logit'):
     model = model(*args)
     explainer = KernelExplainer(model, features, link=link)
@@ -152,12 +177,14 @@ if __name__ == '__main__':
     # plt.show()
 
     model_input = getKernelExplainerModelInput(feature_data, current_oligo)
-    print(model_input)
     repair_outcome_freqs = getAvgPreds([profile], current_oligo)
+    repair_outcome_freqs_dict = {x[1]: x[0] for x in repair_outcome_freqs}
+
+    repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_dict, current_oligo)
     print(repair_outcome_freqs)
 
     # TODO: Nicely format the model output in such a way that it can be read by the SHAP library. See iPad notes.
 
-    shap_value = getSHAPValue(predictMutations, small_feature_data, DEFAULT_MODEL, target_seq, pam_idx)
+    # shap_value = getSHAPValue(predictMutations, small_feature_data, DEFAULT_MODEL, target_seq, pam_idx)
 
-    predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
+    # predictMutations(DEFAULT_MODEL, target_seq, pam_idx)
