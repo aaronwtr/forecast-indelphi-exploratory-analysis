@@ -89,13 +89,13 @@ def getKernelExplainerModelInput(instances, current_oligo):
     return model_input
 
 
-def predictMutations(input_data, theta_file, target_seq, pam_idx, add_null=True):
+def predictMutations(input_data, theta_file, target, pam, add_null=True):
     theta, train_set, theta_feature_columns = readTheta(theta_file)
 
     # generate indels
     left_trim = 0
-    tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (target_seq, random.randint(0, 100000))
-    cmd = INDELGENTARGET_EXE + ' %s %d %s' % (target_seq, pam_idx, tmp_genindels_file)
+    tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (target, random.randint(0, 100000))
+    cmd = INDELGENTARGET_EXE + ' %s %d %s' % (target, pam, tmp_genindels_file)
     subprocess.check_call(cmd.split())
     rep_reads = fetchRepReads(tmp_genindels_file)
     isize, smallest_indel = min([(tokFullIndel(x)[1], x) for x in rep_reads]) if len(rep_reads) > 0 else (0, '-')
@@ -179,7 +179,13 @@ def reshapeModelOutput(repair_outcome, current_oligo):
 
 
 def model(x):
-    return predictionModel(x, DEFAULT_MODEL, target_seq, pam_idx)
+    # Select which prediction you want to explain
+    # TODO 1A: Debug prediction. Probably current_oligo is not correct.
+    # TODO 1B: Make it nicer to index what oligo you want to predict and explain
+    explain_prediction = 0
+    target_seq_local = target_seq_list[explain_prediction]
+    pam_idx_local = pam_idx_list[explain_prediction]
+    return predictionModel(x, DEFAULT_MODEL, target_seq_local, pam_idx_local)
 
 
 def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
@@ -216,6 +222,9 @@ if __name__ == '__main__':
     oligo_data = 0
     oligo_idx = 0
 
+    target_seq_list = []
+    pam_idx_list = []
+
     while oligo_data != 10:
         current_oligo = guideset['ID'][oligo_idx][5:]
         oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -223,24 +232,19 @@ if __name__ == '__main__':
             oligo_idx += 1
             continue
 
-        target_seq = guideset['TargetSequence'][oligo_idx]  # second index indicates oligo under inspection. if we want to consider
-        # all oligo's, make for loop.
+        target_seq = guideset['TargetSequence'][oligo_idx]
         pam_idx = guideset['PAM Index'][oligo_idx]
         feature_data = pd.read_pickle(
                 "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo))
-        target_seq_list = [target_seq for i in range(feature_data.shape[0])]
-        pam_idx_list = [pam_idx for i in range(feature_data.shape[0])]
-        feature_data['TargetSequence'] = target_seq_list
-        feature_data['PAMIndex'] = pam_idx_list
+        target_seq_list.append(target_seq)
+        pam_idx_list.append(pam_idx)
 
         model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
-        # TODO: Make sure the KernelExplainer does not remove the PAMIndex and TargetSequence columns.
         dfs_container.append(model_df_temp)
         oligo_data += 1
         oligo_idx += 1
 
     model_df = pd.concat(dfs_container)
-    print(model_df)
     model_input = model_df.to_numpy()   # SHAP expects ndarray
 
     shap_values = getSHAPValue(model, model_input)
