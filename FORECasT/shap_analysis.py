@@ -114,7 +114,7 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     os.remove(tmp_features_file)
     '''
 
-    feature_data = model_df
+    feature_data = dfs_container[explain_prediction]
     feature_names = list(feature_data.index)
     indels = ['_'.join(x.split('_')[2:]) for x in feature_names]
     feature_data['Indel'] = indels
@@ -153,11 +153,11 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     return p_predict, rep_reads, in_frame_perc
 
 
-def reshapeModelOutput(repair_outcome, current_oligo):
+def reshapeModelOutput(repair_outcome):
     df_idx = []
     df_columns = []
     for sample in repair_outcome.keys():
-        if 'Oligo_' + str(current_oligo) in sample:
+        if 'Oligo_' + str(oligos_list[explain_prediction]) in sample:
             sample_list = sample.split('_')
             sample_idx = sample_list[0] + '_' + sample_list[1]
             if sample_idx not in df_idx:
@@ -179,26 +179,23 @@ def reshapeModelOutput(repair_outcome, current_oligo):
 
 
 def model(x):
-    # Select which prediction you want to explain
     # TODO 1A: Debug prediction. Probably current_oligo is not correct.
-    # TODO 1B: Make it nicer to index what oligo you want to predict and explain
-    explain_prediction = 0
     target_seq_local = target_seq_list[explain_prediction]
     pam_idx_local = pam_idx_list[explain_prediction]
     return predictionModel(x, DEFAULT_MODEL, target_seq_local, pam_idx_local)
 
 
 def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
-    profile, rep_reads, in_frame = predictMutations(model_df, pre_trained_model, target, pam)
+    profile, rep_reads, in_frame = predictMutations(dfs_container[explain_prediction], pre_trained_model, target, pam)
 
-    repair_outcome_freqs = getAvgPreds([profile], current_oligo)
+    repair_outcome_freqs = getAvgPreds([profile], oligos_list[explain_prediction])
     repair_outcome_freqs_dict = {x[1]: x[0] for x in repair_outcome_freqs}
 
-    repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_dict, current_oligo)
+    repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_dict)
 
     if plot:
-        plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
-                     title='Oligo ' + str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
+        plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], oligos_list[explain_prediction],
+                     title='Oligo ' + str(oligos_list[explain_prediction]) + ' In Frame: %.1f%%' % in_frame)
         plt.show()
 
     return repair_outcome_freqs
@@ -224,6 +221,17 @@ if __name__ == '__main__':
 
     target_seq_list = []
     pam_idx_list = []
+    oligos_list = []
+
+    # TODO 1A: Getting a prediction for a single oligo needs that oligo's dedicated dataset. The SHAP model needs a
+    # TODO 1A: background dataset that contains more than one oligo. This causes a shape mismatch in the SHAP calculation.
+    # TODO 1A: Fix --> make a background dataset of 100 repair outcomes stemming from different oligos. Plug this into
+    # TODO 1A: the prediction model and the SHAP model. (Q: What will be the effect on the prediction?)
+
+    # TODO 1B: Make it nicer to index what oligo you want to predict and explain
+
+    # Select which prediction you want to explain
+    explain_prediction = 1
 
     while oligo_data != 10:
         current_oligo = guideset['ID'][oligo_idx][5:]
@@ -238,6 +246,7 @@ if __name__ == '__main__':
                 "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo))
         target_seq_list.append(target_seq)
         pam_idx_list.append(pam_idx)
+        oligos_list.append(current_oligo)
 
         model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
         dfs_container.append(model_df_temp)
