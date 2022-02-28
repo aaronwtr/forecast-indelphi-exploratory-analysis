@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import shap
 from shap import KernelExplainer
 import subprocess
 import os
@@ -8,6 +9,7 @@ import random
 import matplotlib.pyplot as plt
 import pickle as pkl
 from warnings import simplefilter
+from tqdm import tqdm
 
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 from predictor.model import readTheta, computePredictedProfile
@@ -114,11 +116,10 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     os.remove(tmp_features_file)
     '''
 
-    feature_data = dfs_container[explain_prediction]
+    feature_data = input_data
     feature_names = list(feature_data.index)
     indels = ['_'.join(x.split('_')[2:]) for x in feature_names]
     feature_data['Indel'] = indels
-
     feature_columns = [x for x in feature_data.columns if
                        x not in ['Oligo ID', 'Indel', 'Left', 'Right', 'Inserted Seq']]
 
@@ -156,17 +157,17 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
 def reshapeModelOutput(repair_outcome):
     df_idx = []
     df_columns = []
+
     for sample in repair_outcome.keys():
-        if 'Oligo_' + str(oligos_list[explain_prediction]) in sample:
-            sample_list = sample.split('_')
-            sample_idx = sample_list[0] + '_' + sample_list[1]
-            if sample_idx not in df_idx:
-                df_idx.append(sample_idx)
+        sample_list = sample.split('_')
+        sample_idx = sample_list[0] + '_' + sample_list[1]
+        if sample_idx not in df_idx:
+            df_idx.append(sample_idx)
 
-            indel = '_'.join(sample_list[2:])
+        indel = '_'.join(sample_list[2:])
 
-            if indel not in df_columns:
-                df_columns.append(indel)
+        if indel not in df_columns:
+            df_columns.append(indel)
 
     df = pd.DataFrame(index=df_idx, columns=df_columns)
 
@@ -175,24 +176,45 @@ def reshapeModelOutput(repair_outcome):
         sample_indel = '_'.join(sample.split('_')[2:])
         df.loc[sample_idx, sample_indel] = freq
 
+    df = df.fillna(0.0)
+
+    predicted_indels = list(df.columns)
+    model_df_idx = list(model_df.index)
+    model_indels_tmp = [x.split('_')[2:] for x in model_df_idx]
+    model_indels = ['_'.join(x) for x in model_indels_tmp]
+    # print(len(model_indels))
+
+    # print(model_indels)
+    # print(predicted_indels)
+    # indels_not_predicted = list(set(model_indels).difference(set(predicted_indels)))
+    #print(indels_not_predicted)
+    #print(predicted_indels)
+    # for indel in indels_not_predicted:
+    #     df[indel] = np.zeros(len(df.index))
+
     return df
 
 
 def model(x):
-    # TODO 1A: Debug prediction. Probably current_oligo is not correct.
     target_seq_local = target_seq_list[explain_prediction]
     pam_idx_local = pam_idx_list[explain_prediction]
     return predictionModel(x, DEFAULT_MODEL, target_seq_local, pam_idx_local)
 
 
 def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
-    profile, rep_reads, in_frame = predictMutations(dfs_container[explain_prediction], pre_trained_model, target, pam)
+    repair_outcome_freqs_dict = {}
 
-    repair_outcome_freqs = getAvgPreds([profile], oligos_list[explain_prediction])
-    repair_outcome_freqs_dict = {x[1]: x[0] for x in repair_outcome_freqs}
+    print("Performing predictions for %d given input samples...\n" % len(oligos_list))
+    for i in tqdm(range(len(oligos_list))):
+        profile, rep_reads, in_frame = predictMutations(dfs_container[i], pre_trained_model, target_seq_list[i], pam_idx_list[i])
+        repair_outcome_freqs = getAvgPreds([profile], oligos_list[i])
+        repair_outcome_freqs_dict_tmp = {x[1]: x[0] for x in repair_outcome_freqs}
+        repair_outcome_freqs_dict.update(repair_outcome_freqs_dict_tmp)
 
     repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_dict)
+    print(repair_outcome_freqs)
 
+    profile, rep_reads, in_frame = predictMutations(model_df, pre_trained_model, target, pam)
     if plot:
         plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], oligos_list[explain_prediction],
                      title='Oligo ' + str(oligos_list[explain_prediction]) + ' In Frame: %.1f%%' % in_frame)
@@ -203,7 +225,7 @@ def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
 
 def getSHAPValue(model, input_data, link='logit'):
     explainer = KernelExplainer(model, input_data, link=link)
-    shap = explainer.shap_values(model_df)  # input data currently is train data. For this line it should be test data
+    shap = explainer.shap_values(model_df.iloc[0, :])  # input data currently is train data. For this line it should be test data
 
     return shap
 
@@ -222,16 +244,10 @@ if __name__ == '__main__':
     target_seq_list = []
     pam_idx_list = []
     oligos_list = []
-
-    # TODO 1A: Getting a prediction for a single oligo needs that oligo's dedicated dataset. The SHAP model needs a
-    # TODO 1A: background dataset that contains more than one oligo. This causes a shape mismatch in the SHAP calculation.
-    # TODO 1A: Fix --> make a background dataset of 100 repair outcomes stemming from different oligos. Plug this into
-    # TODO 1A: the prediction model and the SHAP model. (Q: What will be the effect on the prediction?)
-
-    # TODO 1B: Make it nicer to index what oligo you want to predict and explain
+    indels = []
 
     # Select which prediction you want to explain
-    explain_prediction = 1
+    explain_prediction = 0
 
     while oligo_data != 10:
         current_oligo = guideset['ID'][oligo_idx][5:]
@@ -262,6 +278,11 @@ if __name__ == '__main__':
             current_oligo) + '.pkl', 'wb') as f:
         pkl.dump(shap_values, f)
         f.close()
+
+    # TODO 1: PROBLEM: Shape of the input samples != shape of the samples in the model output. This is because in the
+    # TODO 1: input samples, we take as a sample oligo+repair_outcome, while in the model output we take as a sample
+    # TODO 1: only oligo. Proposed solution: Calculate the SHAP values only for a given repair_outcome. That way you do
+    # TODO 1: not have to consider the different repair_outcomes at the model input.
 
     # TODO 2: Error -> MemoryError: Out of memory. This occurs because the SHAP method considers each possible coalition,
     # TODO 2: i.e. all possible combinations of features, for each sample, i.e. oligo-indel in our case. Practically this
