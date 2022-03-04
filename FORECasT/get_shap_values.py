@@ -153,7 +153,7 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     theta = list(theta_feature_dict.values())
 
     # Predict the profile
-    p_predict, _ = computePredictedProfile(feature_data, theta, feature_columns)    
+    p_predict, _ = computePredictedProfile(feature_data, theta, feature_columns)
     in_frame, out_frame, _ = fetchIndelSizeCounts(p_predict)
     in_frame_perc = in_frame * 100.0 / (in_frame + out_frame)
     if add_null:
@@ -207,6 +207,7 @@ def predictionModel(input_data, pre_trained_model, target, pam, plot=False):
         repair_outcome_freqs_dict.update(repair_outcome_freqs_dict_tmp)
 
     repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_dict)
+    print(repair_outcome_freqs)
 
     # profile, rep_reads, in_frame = predictMutations(model_df, pre_trained_model, target, pam)
     # if plot:
@@ -219,7 +220,7 @@ def predictionModel(input_data, pre_trained_model, target, pam, plot=False):
 
 def getSHAPValue(model, input_data, link='logit'):
     explainer = KernelExplainer(model, input_data, link=link)
-    shap = explainer.shap_values(model_input, nsamples=1)  # input data currently is train data. For this line it should be test data
+    shap = explainer.shap_values(model_df.iloc[0, :], nsamples=1)  # input data currently is train data. For this line it should be test data
 
     return shap
 
@@ -295,9 +296,10 @@ if __name__ == '__main__':
 
     model_df = pd.concat(dfs_container)
     model_df = model_df.loc[model_df.index.str.contains(repair_outcome_class)]
-    model_input = model_df.to_numpy()   # SHAP expects ndarray
+    print(model_df)
+    # model_input = model_df.to_numpy()   # SHAP expects ndarray
 
-    shap_values = getSHAPValue(model, model_input)
+    shap_values = getSHAPValue(model, model_df)
     # save shap_values to .pkl file
     with open('FORECasT/shap_values/' + str(repair_outcome_class) + '_' + 'num_background_data' + '_' +
               str(num_background_samples) + '.pkl', 'wb') as f:
