@@ -196,8 +196,9 @@ def debugIndel(theta, data, indel, feature_columns):
 
 def computePredictedProfile(data, theta, feature_columns):
     data['expThetaX'] = np.exp(data.apply(calcThetaX, axis=1, args=(theta, feature_columns)))
+    samples = list(data.index)
     sum_exp = data['expThetaX'].sum()
-    profile = {x: expthetax * 1000 / sum_exp for (x, expthetax) in zip(data['Indel'], data['expThetaX'])}
+    profile = {x: expthetax /(1 + sum_exp) for (x, expthetax) in zip(samples, data['expThetaX'])}
     counts = getProfileCounts(profile)
     return profile, counts
 
