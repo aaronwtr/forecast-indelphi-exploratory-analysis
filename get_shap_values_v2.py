@@ -1,22 +1,15 @@
 import pandas as pd
 import numpy as np
 import shap
-from shap import KernelExplainer
-import subprocess
+from shap import KernelExplainer, Explainer
 import os
-import io
-import random
 import matplotlib.pyplot as plt
 import pickle as pkl
 from warnings import simplefilter
 from tqdm import tqdm
 
-from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 from predictor.model import readTheta, computePredictedProfile
 from predictor.predict import DEFAULT_MODEL, predictMutations, INDELGENTARGET_EXE, fetchRepReads
-from selftarget.indel import tokFullIndel
-from selftarget.profile import fetchIndelSizeCounts
-from selftarget.view import plotProfiles, getAvgPreds
 
 '''
 In this script, the FORECasT pre-trained model is implemented and SHAP analysis is consequently performed on top of this
@@ -24,66 +17,6 @@ implementation.
 '''
 
 
-# def getProfileCounts(profile):
-#     total = sum([profile[x] for x in profile])
-#     if total == 0:
-#         return []
-#     indel_total = total
-#     if '-' in profile:
-#         indel_total -= profile['-']
-#         null_perc = profile['-'] * 100.0 / indel_total if indel_total != 0 else 100.0
-#         null_profile = (profile['-'], '-', profile['-'] * 100.0 / total, null_perc)
-#     counts = [(profile[x], x, profile[x] * 100.0 / total, profile[x] * 100.0 / indel_total) for x in profile if
-#               x != '-']
-#     counts.sort(reverse=True)
-#     if '-' in profile:
-#         counts = [null_profile] + counts
-#     return counts
-#
-#
-# def writePredictedProfileToSummary(p1, fout):
-#     counts = getProfileCounts(p1)
-#     for cnt, indel, _, _ in counts:
-#         if cnt < 0.5: break
-#         fout.write(u'%s\t-\t%d\n' % (indel, np.round(cnt)))
-#
-#
-# def writePredictedRepReadsToFile(p1, rep_reads, fout):
-#     counts = getProfileCounts(p1)
-#     idx = 0
-#     for cnt, indel, _, _ in counts:
-#         if cnt < 0.5: break
-#         fout.write(u'%d\t%s\t%s\n' % (idx, rep_reads[indel], indel))
-#         idx += 1
-#
-#
-# def writeProfilesToFile(out_prefix, profiles_and_rr, write_rr=False):
-#     fout = io.open(out_prefix + '_predictedindelsummary.txt', 'w')
-#     if write_rr: fout_rr = io.open(out_prefix + '_predictedreads.txt', 'w')
-#     for (guide_id, prof, rep_reads, in_frame) in profiles_and_rr:
-#         if len(profiles_and_rr) > 1:
-#             id_str = u'@@@%s\t%.3f\n' % (guide_id, in_frame)
-#             fout.write(id_str)
-#             if write_rr:
-#                 fout_rr.write(id_str)
-#         writePredictedProfileToSummary(prof, fout)
-#         if write_rr:
-#             writePredictedRepReadsToFile(prof, rep_reads, fout_rr)
-#     fout.close()
-#
-#
-# def predictMutationsSingle(target_seq, pam_idx, out_prefix, theta_file=DEFAULT_MODEL):
-#     print('Predicting mutations...')
-#     p_predict, rep_reads, in_frame_perc = predictMutations(theta_file, target_seq, pam_idx)
-#     print('Writing to file...')
-#     writeProfilesToFile(out_prefix, [('Test Guide', p_predict, rep_reads, in_frame_perc)], write_rr=True)
-#     print('Done!')
-#
-#
-# def getIndels(instances):
-#     return list(instances[:]['Indel'])
-#
-#
 def getKernelExplainerModelInput(instances, current_oligo):
     model_input = instances.iloc[:, 0:instances.shape[1] - 3]
 
@@ -137,9 +70,6 @@ def predictionModel(input_data, pre_trained_model, feature_columns, plot=False):
     sum_preds = np.sum(preds)
     repair_outcome_freqs_profile = np.array([pred / (1 + sum_preds) for pred in preds])
 
-    print(repair_outcome_freqs_profile)
-    # # repair_outcome_freqs = reshapeModelOutput(repair_outcome_freqs_profile)
-
     return repair_outcome_freqs_profile
 
 
@@ -153,8 +83,10 @@ def getSHAPValue(model, background_data, explanation_data, explain_sample='all',
     num_samples = 10
 
     explainer = KernelExplainer(model, background_data, link=link)
+
     if explain_sample == 'all':
         shap = explainer.shap_values(background_data, nsamples=num_samples)
+
     elif explain_sample == 'one':
         shap = explainer.shap_values(background_data.iloc[0, :], nsamples=num_samples)
     else:
@@ -167,7 +99,6 @@ if __name__ == '__main__':
     # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
-    num_oligos = 10
     tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
 
     dfs_container = []
@@ -181,7 +112,7 @@ if __name__ == '__main__':
     pred_data = []
 
     oligo_idx = 0
-    num_oligos = 10
+    num_oligos = 1
     size_background_data = 100
     sampling_num = int(size_background_data / num_oligos)
 
@@ -207,7 +138,7 @@ if __name__ == '__main__':
         oligo_idx += 1
 
     model_df = pd.concat(dfs_container)
-    model_input = model_df.to_numpy()   # SHAP expects ndarray
+    model_input = model_df.to_numpy()  # SHAP expects ndarray
 
     oligo_data = 0
     dfs_container_ex = []
@@ -231,23 +162,38 @@ if __name__ == '__main__':
         oligo_data += 1
         oligo_idx += 1
 
-    explain_sample = 0
+    explain_prediction = 0
     explanation_data_tmp = pd.concat(dfs_container_ex)
     explanation_data = explanation_data_tmp.to_numpy()
+    explain_sample = 'all'
 
-    shap_values, ex = getSHAPValue(model, model_df, explanation_data, explain_sample='one')
+    shap_values, ex = getSHAPValue(model, model_df, explanation_data, explain_sample='all')
+    print(type(shap_values))
+
     shap.initjs()
-    plot = shap.force_plot(ex.expected_value, shap_values, model_df.iloc[explain_sample, :], show=False)
+    plt.rcParams['ytick.labelsize'] = 'small'
 
-    shap.save_html(f'FORECasT/shap_values/forceplot_{list(model_df.index)[explain_sample]}.html', plot)
+    if explain_sample == 'one':
+        force = shap.force_plot(ex.expected_value, shap_values, model_df.iloc[explain_prediction, :], show=False)
+        shap.save_html(f'FORECasT/shap_values/force_plots/forceplot_{list(model_df.index)[explain_prediction]}.html',
+                       force)
+        plt.clf()
+        plt.close()
 
-    print(model_df)
-
-    # TODO: Debug shap output: f(x) does not seem to match up with model output. Negative values are present which is
-    # TODO: not expected as well.
+    if explain_sample == 'all':
+        shap.summary_plot(shap_values, model_df, list(model_df.columns))
 
     # save shap_values to .pkl file
-    # with open('FORECasT/shap_values/' + str() + '_' + 'num_background_data' + '_' +
-    #           str(num_oligos) + '.pkl', 'wb') as f:
-    #     pkl.dump(shap_values, f)
-    #     f.close()
+    with open('FORECasT/shap_values/shapley_values/' + str(
+            list(model_df.index)[explain_prediction]) + '_' + 'num_background_data' + '_' +
+              str(num_oligos) + '.pkl', 'wb') as f:
+        pkl.dump(shap_values, f)
+        f.close()
+
+    # TODO: Make the force plots for the repair outcomes with the highest probability of occuring.
+
+    # TODO: Figure out what the features mean (check FORECasT github).
+    
+    # TODO: Figure out how to scale up the summary plot.
+
+    # TODO: Compare logistic regression feature weigths to the shapley values.
