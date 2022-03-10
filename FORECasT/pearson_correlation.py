@@ -3,7 +3,7 @@ import plotly.express as px
 import pandas as pd
 
 
-PEARSON_PLOT_OUTPUT_DIR = 'pearson_ccs_FORECasT/'
+PEARSON_PLOT_OUTPUT_DIR = '../pearson_ccs_FORECasT/'
 FEATURE_DATA_PREFIX = '_pccs_'
 FEATURE_OUTPUT_PREFIX = 'pearson_cc_'
 

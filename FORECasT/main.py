@@ -7,7 +7,7 @@ import pearson_correlation as pearson
 
 
 def indelphi_pcc():
-    data = pd.read_pickle('inDelphi/test_inDelphi.pkl')
+    data = pd.read_pickle('../inDelphi/test_inDelphi.pkl')
 
     mutation = 'del_features'
     features = pd.DataFrame(data[mutation])
@@ -26,7 +26,7 @@ def indelphi_pcc():
 
 
 def forecast_pcc():
-    data = pd.read_pickle('FORECasT/train/Tijsterman_Analyser/Oligo_38')
+    data = pd.read_pickle('train/Tijsterman_Analyser/Oligo_38')
     float_data = data.drop(labels=['Indel'], axis=1)
     feature_cols = float_data.columns.tolist()
 
