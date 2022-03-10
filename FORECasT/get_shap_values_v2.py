@@ -51,10 +51,6 @@ def model(x):
     return predictionModel(x, DEFAULT_MODEL, feature_columns)
 
 
-def findMaxRepairOutcome():
-    pass
-
-
 def predictionModel(input_data, pre_trained_model, feature_columns, plot=False):
     print("Performing predictions for input samples...\n")
 

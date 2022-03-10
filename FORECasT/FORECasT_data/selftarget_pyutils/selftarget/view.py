@@ -59,10 +59,9 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
     PL.rcParams['svg.fonttype'] = 'none'
     ocounts = [getProfileCounts(p1) for p1 in profiles]
     counts = [{indel: (cnt,indel,perc1a,perc1b) for (cnt,indel,perc1a,perc1b) in x} for x in ocounts]
-    
-    #Count total non-null reads for each sample (to report in labels)
-    nonnull_reads = [sum([x[indel][0] for indel in x if indel != '-']) for x in counts]
-    labels = ['%s(%d Reads)' % (tit,nn) for (tit,nn) in zip(labels, nonnull_reads)]
+    nonnull_reads = [len(counts[0]) - 1]
+
+    labels = ['%s (%d Reads)' % (tit,nn) for (tit,nn) in zip(labels, nonnull_reads)]
 
     #Fetch the indels to display as union of top N indels across profiles
     num_top = 20

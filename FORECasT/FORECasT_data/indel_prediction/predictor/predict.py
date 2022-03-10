@@ -14,7 +14,7 @@ from selftarget.indel import tokFullIndel
 from predictor.model import computePredictedProfile, readTheta, setFeaturesDir, setReadsDir
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 
-REPO_PATH = "C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/forecast-indelphi-exploratory-analysis/FORECasT/"
+REPO_PATH = "C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/FORECasT/"
 INDELGENTARGET_EXE = os.getenv("INDELGENTARGET_EXE",
                                str(REPO_PATH) + "FORECasT_data/indel_analysis/indelmap/build/indelgentarget.exe")
 DEFAULT_MODEL = "FORECasT/FORECasT_data/indel_prediction/predictor/forecast_pre_trained_model.txt"
