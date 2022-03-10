@@ -17,7 +17,7 @@ implementation.
 '''
 
 
-def getKernelExplainerModelInput(instances, current_oligo):
+def getKernelExplainerModelInput(instances, current_oligo, data_size):
     model_input = instances.iloc[:, 0:instances.shape[1] - 3]
 
     indel_idx = list(instances[:]['Indel'])
@@ -27,7 +27,7 @@ def getKernelExplainerModelInput(instances, current_oligo):
     model_input.index = indices
 
     # Note that n will be the number of samples per oligo
-    model_input = model_input.sample(n=sampling_num)
+    model_input = model_input.sample(n=data_size)
 
     return model_input
 
@@ -49,6 +49,10 @@ def reshapeModelOutput(repair_outcome):
 def model(x):
     feature_columns = list(model_df.columns)
     return predictionModel(x, DEFAULT_MODEL, feature_columns)
+
+
+def findMaxRepairOutcome():
+    pass
 
 
 def predictionModel(input_data, pre_trained_model, feature_columns, plot=False):
@@ -85,12 +89,12 @@ def getSHAPValue(model, background_data, explanation_data, explain_sample='all',
     explainer = KernelExplainer(model, background_data, link=link)
 
     if explain_sample == 'all':
-        shap = explainer.shap_values(background_data, nsamples=num_samples)
+        shap = explainer.shap_values(explanation_data, nsamples=num_samples)
 
     elif explain_sample == 'one':
-        shap = explainer.shap_values(background_data.iloc[0, :], nsamples=num_samples)
+        shap = explainer.shap_values(explanation_data.iloc[0, :], nsamples=num_samples)
     else:
-        shap = explainer.shap_values(background_data.iloc[int(explain_sample), :], nsamples=num_samples)
+        shap = explainer.shap_values(explanation_data.iloc[int(explain_sample), :], nsamples=num_samples)
 
     return shap, explainer
 
@@ -98,8 +102,8 @@ def getSHAPValue(model, background_data, explanation_data, explain_sample='all',
 if __name__ == '__main__':
     # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
-    guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
-    tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
+    guideset = pd.read_csv("guideset_data.txt", sep='\t')
+    tijsterman_oligos = os.listdir('train/Tijsterman_Analyser')
 
     dfs_container = []
     oligo_data = 0
@@ -112,9 +116,9 @@ if __name__ == '__main__':
     pred_data = []
 
     oligo_idx = 0
-    num_oligos = 1
+    num_oligos = 10
     size_background_data = 100
-    sampling_num = int(size_background_data / num_oligos)
+    sample_size_background = int(np.round(size_background_data / num_oligos))
 
     print('Collecting background data...')
 
@@ -129,7 +133,7 @@ if __name__ == '__main__':
         feature_data = pd.read_pickle(
             "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo))
 
-        model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
+        model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo, sample_size_background)
         for i in range(len(list(model_df_temp.index))):
             oligos_list.append(current_oligo)
 
@@ -138,10 +142,14 @@ if __name__ == '__main__':
         oligo_idx += 1
 
     model_df = pd.concat(dfs_container)
+    print('Background data: \n', model_df)
     model_input = model_df.to_numpy()  # SHAP expects ndarray
 
     oligo_data = 0
     dfs_container_ex = []
+    explanation_data_size = 1000
+    sample_size_explanation = int(np.round(explanation_data_size / num_oligos))
+
     print('\nCollecting explanation dataset...')
     # Get the explanation data set
     while oligo_data < num_oligos:
@@ -154,7 +162,7 @@ if __name__ == '__main__':
         feature_data = pd.read_pickle(
             "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo))
 
-        model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
+        model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo, sample_size_explanation)
         for i in range(len(list(model_df_temp.index))):
             oligos_list.append(current_oligo)
 
@@ -164,11 +172,11 @@ if __name__ == '__main__':
 
     explain_prediction = 0
     explanation_data_tmp = pd.concat(dfs_container_ex)
+    print('Explanation dataset: \n', explanation_data_tmp)
     explanation_data = explanation_data_tmp.to_numpy()
     explain_sample = 'all'
 
     shap_values, ex = getSHAPValue(model, model_df, explanation_data, explain_sample='all')
-    print(type(shap_values))
 
     shap.initjs()
     plt.rcParams['ytick.labelsize'] = 'small'
@@ -193,7 +201,7 @@ if __name__ == '__main__':
     # TODO: Make the force plots for the repair outcomes with the highest probability of occuring.
 
     # TODO: Figure out what the features mean (check FORECasT github).
-    
+
     # TODO: Figure out how to scale up the summary plot.
 
     # TODO: Compare logistic regression feature weigths to the shapley values.
