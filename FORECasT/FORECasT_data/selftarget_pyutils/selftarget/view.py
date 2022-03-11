@@ -90,7 +90,7 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
 
     #Plot
     scale_factor = 30.0/max([x[1][3] for x in ocounts])
-    fig = PL.figure(figsize=(10,2*len(labels)))
+    fig = PL.figure(figsize=(10, 10))
     fig.patch.set_visible(False)
     ax = PL.gca()
     ax.axis('off')
@@ -132,4 +132,3 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
     PL.title(title)
     PL.subplots_adjust(left=0.05,right=0.95,top=0.95, bottom=0.05)
     PL.show(block=False)
-    saveFig('%s_%d' % (title.replace(' ','_'), len(labels)), bbox=False)

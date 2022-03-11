@@ -41,7 +41,6 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (target, random.randint(0, 100000))
     cmd = INDELGENTARGET_EXE + ' %s %d %s' % (target, pam, tmp_genindels_file)
 
-
     subprocess.check_call(cmd.split())
     rep_reads = fetchRepReads(tmp_genindels_file)
     isize, smallest_indel = min([(tokFullIndel(x)[1], x) for x in rep_reads]) if len(rep_reads) > 0 else (0, '-')
@@ -79,7 +78,7 @@ def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
     if plot:
         plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
                      title='Oligo ' + str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
-        plt.show()
+        plt.savefig("FORECasT/repair_outcomes/oligo_%s.pdf" % current_oligo)
 
     return
 
@@ -91,8 +90,7 @@ if __name__ == '__main__':
     tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
 
     dfs_container = []
-    oligo_data = 0
-    oligo_idx = 0
+    oligo_idx = 25
 
     target_seq_list = []
     pam_idx_list = []
@@ -107,6 +105,7 @@ if __name__ == '__main__':
         if oligo_name not in tijsterman_oligos:
             oligo_idx += 1
             continue
+        print(oligo_idx)
         data_found = True
 
     current_oligo = guideset['ID'][oligo_idx][5:]
@@ -114,7 +113,6 @@ if __name__ == '__main__':
 
     target_seq = guideset['TargetSequence'][oligo_idx]
     pam_idx = guideset['PAM Index'][oligo_idx]
-    feature_data = pd.read_pickle(
-        "FORECasT/train/Tijsterman_Analyser/" + oligo_name)
+    feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
 
     model(feature_data)
