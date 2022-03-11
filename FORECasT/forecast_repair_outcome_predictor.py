@@ -91,7 +91,7 @@ if __name__ == '__main__':
     tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
 
     dfs_container = []
-    oligo_idx = 28
+    oligo_idx = 0
 
     target_seq_list = []
     pam_idx_list = []

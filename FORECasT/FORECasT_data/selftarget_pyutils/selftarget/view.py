@@ -90,7 +90,7 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
 
     #Plot
     scale_factor = 30.0/max([x[1][3] for x in ocounts])
-    fig = PL.figure(figsize=(10, 10))
+    fig = PL.figure(figsize=(15, 10))
     fig.patch.set_visible(False)
     ax = PL.gca()
     ax.axis('off')
