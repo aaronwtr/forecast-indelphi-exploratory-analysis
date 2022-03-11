@@ -131,4 +131,3 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
     PL.legend(loc='upper right')
     PL.title(title)
     PL.subplots_adjust(left=0.05,right=0.95,top=0.95, bottom=0.05)
-    PL.show(block=False)

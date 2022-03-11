@@ -79,6 +79,7 @@ def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
         plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
                      title='Oligo ' + str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
         plt.savefig("FORECasT/repair_outcomes/oligo_%s.pdf" % current_oligo)
+        plt.close()
 
     return
 
@@ -90,7 +91,7 @@ if __name__ == '__main__':
     tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
 
     dfs_container = []
-    oligo_idx = 25
+    oligo_idx = 28
 
     target_seq_list = []
     pam_idx_list = []
@@ -99,20 +100,23 @@ if __name__ == '__main__':
     pred_data = []
     data_found = False
 
-    while not data_found:
+    for i in range(30):
+        while not data_found:
+            current_oligo = guideset['ID'][oligo_idx][5:]
+            oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+            if oligo_name not in tijsterman_oligos:
+                oligo_idx += 1
+                continue
+            print(oligo_idx)
+            data_found = True
+
         current_oligo = guideset['ID'][oligo_idx][5:]
         oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
-        if oligo_name not in tijsterman_oligos:
-            oligo_idx += 1
-            continue
-        print(oligo_idx)
-        data_found = True
 
-    current_oligo = guideset['ID'][oligo_idx][5:]
-    oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        target_seq = guideset['TargetSequence'][oligo_idx]
+        pam_idx = guideset['PAM Index'][oligo_idx]
+        feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
 
-    target_seq = guideset['TargetSequence'][oligo_idx]
-    pam_idx = guideset['PAM Index'][oligo_idx]
-    feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
-
-    model(feature_data)
+        model(feature_data)
+        oligo_idx += 1
+        data_found = False
