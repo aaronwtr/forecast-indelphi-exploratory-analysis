@@ -69,19 +69,29 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
 
 
 def model(x):
-    return predictionModel(x, DEFAULT_MODEL, target_seq, pam_idx)
+    return predictionModel(x, DEFAULT_MODEL, target_seq, pam_idx, num_plots)
 
 
-def predictionModel(input_data, pre_trained_model, target, pam, plot=True):
+def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=False):
     profile, rep_reads, in_frame = predictMutations(input_data, pre_trained_model, target, pam)
+
+    profile_freqs = list(profile.values())
+    profile_freqs.sort(reverse=True)
+    profile_freqs = profile_freqs[1:]
+
+    if profile_freqs[0] - profile_freqs[1] < 0.1:
+        plot = True
 
     if plot:
         plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
                      title='Oligo ' + str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
         plt.savefig("FORECasT/repair_outcomes/oligo_%s.pdf" % current_oligo)
         plt.close()
+        plot = False
 
-    return
+        return 1
+
+    return 0
 
 
 if __name__ == '__main__':
@@ -99,15 +109,15 @@ if __name__ == '__main__':
     indels = []
     pred_data = []
     data_found = False
+    num_plots = 0
 
-    for i in range(30):
+    while num_plots != 30:
         while not data_found:
             current_oligo = guideset['ID'][oligo_idx][5:]
             oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
             if oligo_name not in tijsterman_oligos:
                 oligo_idx += 1
                 continue
-            print(oligo_idx)
             data_found = True
 
         current_oligo = guideset['ID'][oligo_idx][5:]
@@ -117,6 +127,6 @@ if __name__ == '__main__':
         pam_idx = guideset['PAM Index'][oligo_idx]
         feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
 
-        model(feature_data)
+        num_plots += model(feature_data)
         oligo_idx += 1
         data_found = False
