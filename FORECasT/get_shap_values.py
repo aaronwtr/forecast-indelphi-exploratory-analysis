@@ -93,9 +93,10 @@ def getBackgroundData(guidedata, ioi):
     num_samples = 100
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
-    while current_oligo is not oligo_of_interest:
+    while current_oligo != oligo_of_interest:
         oligo_idx += 1
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
+        print(current_oligo)
 
     samples = pd.read_pickle(
         "FORECasT/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -145,7 +146,7 @@ def getExplanationData(guidedata, ioi):
     num_samples = 100
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
-    while current_oligo is not oligo_of_interest:
+    while current_oligo != oligo_of_interest:
         oligo_idx += 1
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
@@ -199,7 +200,9 @@ def getSHAPValue(model, background_data, explanation_data, explain_sample='all',
     explainer = KernelExplainer(model, background_data, link=link)
 
     if explain_sample == 'all':
-        shap = explainer.shap_values(explanation_data, nsamples="auto")
+        shap = explainer.shap_values(explanation_data, nsamples=100)   # we need to limit the number of samples because
+                                                                        # compute time increases exponentially with the
+                                                                        # number of samples
 
     elif explain_sample == 'one':
         shap = explainer.shap_values(explanation_data.iloc[0, :], nsamples="auto")
@@ -221,7 +224,7 @@ if __name__ == '__main__':
     indels = []
     pred_data = []
 
-    indel_of_interest = "Oligo_58_D3_L-4C5R5"
+    indel_of_interest = "Oligo_930_I1_L-2C1R0"
 
     if os.path.isfile(f"FORECasT/background_datasets/{indel_of_interest}.pkl"):
         background_df = pd.read_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
