@@ -208,8 +208,7 @@ def plotShapleyValues():
         plt.close()
 
     if explain_sample == 'all':
-        plot = shap.summary_plot(shap_values, background_df, list(background_df.columns))
-        plot.savefig(f'FORECasT/shap_values_visualizations/summary_plots/{indel_of_interest}_summary_plot.png')
+        shap.summary_plot(shap_values, background_df, list(background_df.columns))
 
 
 def getShapleyValues(model, background_data, explanation_data, explain_sample='all', link='logit'):
@@ -278,4 +277,3 @@ if __name__ == '__main__':
         shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
     else:
         shap_values, expected_value = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
-        
