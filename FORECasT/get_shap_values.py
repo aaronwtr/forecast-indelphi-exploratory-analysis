@@ -274,4 +274,8 @@ if __name__ == '__main__':
     explain_prediction = 0  # note that the repair outcome of interest is in the first row of the explanation data
     explain_sample = 'all'
 
-    shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
+    if explain_sample == 'all':
+        shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
+    else:
+        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
+        
