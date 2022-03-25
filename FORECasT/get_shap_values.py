@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import pickle as pkl
 from warnings import simplefilter
 from tqdm import tqdm
+import pickle
 
 from predictor.model import readTheta, computePredictedProfile
 from predictor.predict import DEFAULT_MODEL, predictMutations, INDELGENTARGET_EXE, fetchRepReads
@@ -90,7 +91,7 @@ def getBackgroundData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    num_samples = 100
+    num_samples = 10
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
@@ -143,7 +144,7 @@ def getExplanationData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    num_samples = 100
+    num_samples = 10
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
@@ -195,21 +196,35 @@ def getSHAPValue(model, background_data, explanation_data, explain_sample='all',
     Compute the SHAP values for the explanation data. If no specific sample is specified, the SHAP values of the entire
     explanation set are computed. If explain_sample is one, then automatically the first instance of the explanation set
     is explained.
+
+    A copy of the Shapley values array is saved to shap_save_data/shapley_values. This is a tuple with index 0 being the
+    Shapley value array and index 1 being the expected value for the explanation set. This expected value is needed if
+    we want to generate local SHAP plots.
     """
 
     explainer = KernelExplainer(model, background_data, link=link)
 
+    expected_val = explainer.expected_value
+
     if explain_sample == 'all':
-        shap = explainer.shap_values(explanation_data, nsamples=100)   # we need to limit the number of samples because
-                                                                        # compute time increases exponentially with the
-                                                                        # number of samples
+        shap = explainer.shap_values(explanation_data, nsamples="auto")     # consider limiting the number of samples
+                                                                            # because compute time increases
+                                                                            # exponentially with the number of samples
+
+        with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'wb') as file:
+            pickle.dump(shap, file)
+        file.close()
 
     elif explain_sample == 'one':
         shap = explainer.shap_values(explanation_data.iloc[0, :], nsamples="auto")
+        with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'wb') as file:
+            pickle.dump((shap, expected_val), file)
+        file.close()
+
     else:
         shap = explainer.shap_values(explanation_data.iloc[int(explain_sample), :], nsamples="auto")
 
-    return shap, explainer
+    return shap, expected_val
 
 
 if __name__ == '__main__':
@@ -239,16 +254,16 @@ if __name__ == '__main__':
         explanation_df.to_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
 
     explain_prediction = 0  # note that the repair outcome of interest is in the first row of the explanation data
-    explain_sample = 'one'  # TODO make this a list of all and one and make a for loop to get both plots in one run
+    explain_sample = 'one'
 
-    shap_values, ex = getSHAPValue(model, background_df, explanation_df, explain_sample=explain_sample)
+    shap_values, expected_value = getSHAPValue(model, background_df, explanation_df, explain_sample=explain_sample)
 
     shap.initjs()
     plt.rcParams['ytick.labelsize'] = 'small'
 
-    if explain_sample == 'one':  # TODO explain variance in outcome of force plots
+    if explain_sample == 'one':
         force = shap.force_plot(
-            ex.expected_value, shap_values, explanation_df.iloc[explain_prediction, :], list(explanation_df.columns),
+            expected_value, shap_values, explanation_df.iloc[explain_prediction, :], list(explanation_df.columns),
             show=False, contribution_threshold=0.1, text_rotation=0.4
         )
         shap.save_html(
@@ -261,16 +276,7 @@ if __name__ == '__main__':
     if explain_sample == 'all':
         shap.summary_plot(shap_values, background_df, list(background_df.columns))
 
-    # save shap_values to .pkl file
-    with open('FORECasT/shap_values_visualizations/shapley_values/' + str(
-            list(explanation_df.index)[explain_prediction]) + 'kernel_explainer_approx_shapley_values' + '.pkl', 'wb'
-              ) as f:
-        pkl.dump(shap_values, f)
-        f.close()
-
     # TODO: Make the force plots for the repair outcomes with the highest probability of occuring.
-
-    # TODO: Figure out what the features mean (check FORECasT github).
 
     # TODO: Compare logistic regression feature weigths to the shapley values. Note that the logistic regression feature
     # TODO: weights are global whereas shap values are local explanations.
