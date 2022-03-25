@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import shap
-from shap import KernelExplainer, Explainer
+from shap import KernelExplainer
 import os
 import matplotlib.pyplot as plt
 import pickle as pkl
@@ -9,8 +9,8 @@ from warnings import simplefilter
 from tqdm import tqdm
 import pickle
 
-from predictor.model import readTheta, computePredictedProfile
-from predictor.predict import DEFAULT_MODEL, predictMutations, INDELGENTARGET_EXE, fetchRepReads
+from predictor.model import readTheta
+from predictor.predict import DEFAULT_MODEL
 
 '''
 In this script, the FORECasT pre-trained model is implemented and SHAP analysis is consequently performed on top of this
@@ -30,11 +30,6 @@ def getKernelExplainerModelInput(instances, current_oligo, **kwargs):
     indices = ['Oligo_' + str(current_oligo) + '_' + j for j in indel_idx]
 
     shap_input.index = indices
-
-    # Note that n will be the number of samples per oligo
-    # if 'data_size' in kwargs:
-    #     n = kwargs['data_size']
-    #     shap_input = shap_input.sample(n)
 
     shap_input = shap_input.fillna(0.0)
 
@@ -97,7 +92,6 @@ def getBackgroundData(guidedata, ioi):
     while current_oligo != oligo_of_interest:
         oligo_idx += 1
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
-        print(current_oligo)
 
     samples = pd.read_pickle(
         "FORECasT/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -191,72 +185,12 @@ def getExplanationData(guidedata, ioi):
     return explanation_data
 
 
-def getSHAPValue(model, background_data, explanation_data, explain_sample='all', link='logit'):
+def plotShapleyValues():
     """
-    Compute the SHAP values for the explanation data. If no specific sample is specified, the SHAP values of the entire
-    explanation set are computed. If explain_sample is one, then automatically the first instance of the explanation set
-    is explained.
-
-    A copy of the Shapley values array is saved to shap_save_data/shapley_values. This is a tuple with index 0 being the
-    Shapley value array and index 1 being the expected value for the explanation set. This expected value is needed if
-    we want to generate local SHAP plots.
+    Plot the shapley value for the given input. If we are explaining a single prediction, we will plot a force plot for
+    that single prediction. If we are explaining a set of predictions, we will plot a summary beeswarm plot for the
+    entire explanation dataset.
     """
-
-    explainer = KernelExplainer(model, background_data, link=link)
-
-    expected_val = explainer.expected_value
-
-    if explain_sample == 'all':
-        shap = explainer.shap_values(explanation_data, nsamples="auto")     # consider limiting the number of samples
-                                                                            # because compute time increases
-                                                                            # exponentially with the number of samples
-
-        with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'wb') as file:
-            pickle.dump(shap, file)
-        file.close()
-
-    elif explain_sample == 'one':
-        shap = explainer.shap_values(explanation_data.iloc[0, :], nsamples="auto")
-        with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'wb') as file:
-            pickle.dump((shap, expected_val), file)
-        file.close()
-
-    else:
-        shap = explainer.shap_values(explanation_data.iloc[int(explain_sample), :], nsamples="auto")
-
-    return shap, expected_val
-
-
-if __name__ == '__main__':
-    # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
-    simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
-    guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
-    tijsterman_oligos = os.listdir("FORECasT/train/Tijsterman_Analyser")
-
-    target_seq_list = []
-    pam_idx_list = []
-    oligos_list = []
-    indels = []
-    pred_data = []
-
-    indel_of_interest = "Oligo_930_I1_L-2C1R0"
-
-    if os.path.isfile(f"FORECasT/background_datasets/{indel_of_interest}.pkl"):
-        background_df = pd.read_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
-    else:
-        background_df = getBackgroundData(guideset, indel_of_interest)
-        background_df.to_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
-
-    if os.path.isfile(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl"):
-        explanation_df = pd.read_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
-    else:
-        explanation_df = getExplanationData(guideset, indel_of_interest)
-        explanation_df.to_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
-
-    explain_prediction = 0  # note that the repair outcome of interest is in the first row of the explanation data
-    explain_sample = 'one'
-
-    shap_values, expected_value = getSHAPValue(model, background_df, explanation_df, explain_sample=explain_sample)
 
     shap.initjs()
     plt.rcParams['ytick.labelsize'] = 'small'
@@ -274,9 +208,70 @@ if __name__ == '__main__':
         plt.close()
 
     if explain_sample == 'all':
-        shap.summary_plot(shap_values, background_df, list(background_df.columns))
+        plot = shap.summary_plot(shap_values, background_df, list(background_df.columns))
+        plot.savefig(f'FORECasT/shap_values_visualizations/summary_plots/{indel_of_interest}_summary_plot.png')
 
-    # TODO: Make the force plots for the repair outcomes with the highest probability of occuring.
 
-    # TODO: Compare logistic regression feature weigths to the shapley values. Note that the logistic regression feature
-    # TODO: weights are global whereas shap values are local explanations.
+def getShapleyValues(model, background_data, explanation_data, explain_sample='all', link='logit'):
+    """
+    Compute the SHAP values for the explanation data. If no specific sample is specified, the SHAP values of the entire
+    explanation set are computed. If explain_sample is one, then automatically the first instance of the explanation set
+    is explained.
+
+    A copy of the Shapley values array is saved to shap_save_data/shapley_values. This is a tuple with index 0 being the
+    Shapley value array and index 1 being the expected value for the explanation set. This expected value is needed if
+    we want to generate local SHAP plots.
+    :return: Returns either a Shapley value matrix, or a tuple with the Shapley value matrix and the expected value.
+    """
+
+    explainer = KernelExplainer(model, background_data, link=link)
+
+    if explain_sample == 'all':
+        if os.path.isfile(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl'):
+            shapley_val = pickle.load(open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'rb'))
+        else:
+            shapley_val = explainer.shap_values(explanation_data, nsamples="auto")
+
+            with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'wb') as file:
+                pickle.dump(shapley_val, file)
+            file.close()
+
+        return shapley_val
+
+    elif explain_sample == 'one':
+        if os.path.isfile(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl'):
+            shapley_val, expected_val = pickle.load(open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'rb'))
+        else:
+            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples="auto")
+            expected_val = explainer.expected_value
+            with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'wb') as file:
+                pickle.dump((shap, expected_val), file)
+            file.close()
+
+        return shapley_val, expected_val
+
+
+if __name__ == '__main__':
+    # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
+    simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+    guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
+    tijsterman_oligos = os.listdir("FORECasT/train/Tijsterman_Analyser")
+
+    indel_of_interest = "Oligo_58_D3_L-4C5R5"
+
+    if os.path.isfile(f"FORECasT/background_datasets/{indel_of_interest}.pkl"):
+        background_df = pd.read_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
+    else:
+        background_df = getBackgroundData(guideset, indel_of_interest)
+        background_df.to_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
+
+    if os.path.isfile(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl"):
+        explanation_df = pd.read_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
+    else:
+        explanation_df = getExplanationData(guideset, indel_of_interest)
+        explanation_df.to_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
+
+    explain_prediction = 0  # note that the repair outcome of interest is in the first row of the explanation data
+    explain_sample = 'all'
+
+    shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
