@@ -4,18 +4,27 @@ import shap
 from shap import KernelExplainer
 import os
 import matplotlib.pyplot as plt
-import pickle as pkl
 from warnings import simplefilter
 from tqdm import tqdm
 import pickle
+import io
+import csv
 
-from predictor.model import readTheta
-from predictor.predict import DEFAULT_MODEL
 
 '''
 In this script, the FORECasT pre-trained model is implemented and SHAP analysis is consequently performed on top of this
 implementation.
 '''
+
+
+def readTheta(theta_file):
+    f = io.open(theta_file)
+    train_set = f.readline()[:-1].split(',')
+    feature_columns, theta = [], []
+    for toks in csv.reader(f, delimiter='\t'):
+        feature_columns.append(toks[0])
+        theta.append(eval(toks[1]))
+    return theta, train_set, feature_columns
 
 
 def getKernelExplainerModelInput(instances, current_oligo, **kwargs):
@@ -86,7 +95,7 @@ def getBackgroundData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    num_samples = 10
+    num_samples = 1000
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
@@ -94,7 +103,7 @@ def getBackgroundData(guidedata, ioi):
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
     samples = pd.read_pickle(
-        "FORECasT/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        f"{FORECasT_path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
     )
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
 
@@ -110,7 +119,7 @@ def getBackgroundData(guidedata, ioi):
             continue
 
         feature_data = pd.read_pickle(
-            "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+            f"{FORECasT_path}/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
         )
 
         model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
@@ -138,7 +147,7 @@ def getExplanationData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    num_samples = 10
+    num_samples = 1000
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
@@ -146,7 +155,7 @@ def getExplanationData(guidedata, ioi):
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
     samples = pd.read_pickle(
-        "FORECasT/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        f"{FORECasT_path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
     )
 
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
@@ -163,7 +172,7 @@ def getExplanationData(guidedata, ioi):
             continue
 
         feature_data = pd.read_pickle(
-            "FORECasT/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+            f"{FORECasT_path}/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
         )
 
         model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
@@ -201,7 +210,7 @@ def plotShapleyValues():
             show=False, contribution_threshold=0.1, text_rotation=0.4
         )
         shap.save_html(
-            f'FORECasT/shap_values_visualizations/force_plots/{list(explanation_df.index)[explain_prediction]}_forceplot.html',
+            f'{FORECasT_path}/shap_values_visualizations/force_plots/{list(explanation_df.index)[explain_prediction]}_forceplot.html',
             force
         )
         plt.clf()
@@ -226,24 +235,24 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='a
     explainer = KernelExplainer(model, background_data, link=link)
 
     if explain_sample == 'all':
-        if os.path.isfile(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl'):
+        if os.path.isfile(f'{FORECasT_path}/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl'):
             shapley_val = pickle.load(open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'rb'))
         else:
             shapley_val = explainer.shap_values(explanation_data, nsamples="auto")
 
-            with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'wb') as file:
+            with open(f'{FORECasT_path}/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'wb') as file:
                 pickle.dump(shapley_val, file)
             file.close()
 
         return shapley_val
 
     elif explain_sample == 'one':
-        if os.path.isfile(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl'):
+        if os.path.isfile(f'{FORECasT_path}/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl'):
             shapley_val, expected_val = pickle.load(open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'rb'))
         else:
             shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples="auto")
             expected_val = explainer.expected_value
-            with open(f'FORECasT/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'wb') as file:
+            with open(f'{FORECasT_path}/shap_save_data/shapley_values/{indel_of_interest}_local_shap_values.pkl', 'wb') as file:
                 pickle.dump((shap, expected_val), file)
             file.close()
 
@@ -252,23 +261,27 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='a
 
 if __name__ == '__main__':
     # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
+    # Get the absolute path to where the folder that contains the FORECasT code is located.
+    FORECasT_path_tmp = os.path.dirname(os.path.abspath(__file__))
+    FORECasT_path = FORECasT_path_tmp.replace(os.sep, '/')
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
-    guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
-    tijsterman_oligos = os.listdir("FORECasT/train/Tijsterman_Analyser")
+    guideset = pd.read_csv(f"{FORECasT_path}/guideset_data.txt", sep='\t')
+    tijsterman_oligos = os.listdir(f"{FORECasT_path}/train/Tijsterman_Analyser")
+    DEFAULT_MODEL = f"{FORECasT_path}/tmp_model_thetas.txt"
 
     indel_of_interest = "Oligo_58_D3_L-4C5R5"
 
-    if os.path.isfile(f"FORECasT/background_datasets/{indel_of_interest}.pkl"):
-        background_df = pd.read_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
+    if os.path.isfile(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl"):
+        background_df = pd.read_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
     else:
         background_df = getBackgroundData(guideset, indel_of_interest)
-        background_df.to_pickle(f"FORECasT/background_datasets/{indel_of_interest}.pkl")
+        background_df.to_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
 
-    if os.path.isfile(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl"):
-        explanation_df = pd.read_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
+    if os.path.isfile(f"{FORECasT_path}/explanation_datasets/{indel_of_interest}.pkl"):
+        explanation_df = pd.read_pickle(f"{FORECasT_path}/explanation_datasets/{indel_of_interest}.pkl")
     else:
         explanation_df = getExplanationData(guideset, indel_of_interest)
-        explanation_df.to_pickle(f"FORECasT/explanation_datasets/{indel_of_interest}.pkl")
+        explanation_df.to_pickle(f"{FORECasT_path}/explanation_datasets/{indel_of_interest}.pkl")
 
     explain_prediction = 0  # note that the repair outcome of interest is in the first row of the explanation data
     explain_sample = 'all'
