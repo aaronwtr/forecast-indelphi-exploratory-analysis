@@ -2,6 +2,7 @@ from sklearn.inspection import permutation_importance
 import pandas as pd
 import os
 from tqdm import tqdm
+import numpy as np
 from get_shap_values import model
 
 
@@ -82,6 +83,13 @@ def getData(guidedata, ioi):
     return data, y
 
 
+def KL_divergence(p, q):
+    """
+    Calculates the symmetric KL-divergence between two probability distributions.
+    """
+    return np.sum(p * np.log(p / q)) + np.sum(q * np.log(q / p))
+
+
 def feature_permutation_importance(f, X, y, n_repeats=30, random_state=0):
     """
     Performs a feature permutation importance analysis on the specified model, here referred to as f. The model must be 
@@ -123,3 +131,8 @@ if __name__ == '__main__':
         X, y = getData(guideset, ioi)
         X.to_pickle(f"{FORECasT_path}/feature_importance_datasets/{ioi}.pkl")
         y.to_pickle(f"{FORECasT_path}/feature_importance_datasets/{ioi}_y.pkl")
+
+    print(X)
+    print(y)
+
+    # imp_means, imp_stds, feat_imps = feature_permutation_importance(

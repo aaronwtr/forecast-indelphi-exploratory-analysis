@@ -95,7 +95,7 @@ def getBackgroundData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    num_samples = 1000
+    num_samples = 500
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
@@ -147,7 +147,7 @@ def getExplanationData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    num_samples = 1000
+    num_samples = 500
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
