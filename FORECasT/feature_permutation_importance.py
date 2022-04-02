@@ -76,8 +76,6 @@ def getData(guidedata, ioi):
 
         oligo_idx += 1
 
-    print(len(data.index))
-    print(len(y.index))
     pbar.close()
 
     return data, y
@@ -85,12 +83,13 @@ def getData(guidedata, ioi):
 
 def KL_divergence(p, q):
     """
-    Calculates the symmetric KL-divergence between two probability distributions.
+    Calculates the symmetric KL-divergence between two probability distributions. In our case these probability
+    distributions are the model's predictions and the training data.
     """
     return np.sum(p * np.log(p / q)) + np.sum(q * np.log(q / p))
 
 
-def feature_permutation_importance(f, X, y, n_repeats=30, random_state=0):
+def feature_permutation_importance(f, X, y, scoring, n_repeats=30, random_state=0):
     """
     Performs a feature permutation importance analysis on the specified model, here referred to as f. The model must be 
     a Scikit-Learn model that supports the .fit() and .predict() methods. The X and y arguments must be the X and y 
@@ -98,7 +97,7 @@ def feature_permutation_importance(f, X, y, n_repeats=30, random_state=0):
     because this makes it possible to highlight which features contribute the most to the generalization power of the 
     inspected model. 
     """
-    return permutation_importance(f, X, y, n_repeats=n_repeats, random_state=random_state)
+    return permutation_importance(f, X, y, scoring=scoring, n_repeats=n_repeats, random_state=random_state)
 
 
 if __name__ == '__main__':
