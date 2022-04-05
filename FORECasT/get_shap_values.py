@@ -265,7 +265,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='a
             shapley_val = pickle.load(
                 open(f'{FORECasT_path}/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data, nsamples="auto")
+            shapley_val = explainer.shap_values(explanation_data, nsamples=10**5)
             with open(f'{FORECasT_path}/shap_save_data/shapley_values/{indel_of_interest}_global_shap_values.pkl',
                       'wb') as file:
                 pickle.dump(shapley_val, file)
@@ -306,8 +306,8 @@ if __name__ == '__main__':
     #     background_df.to_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
 
     background_df = getBackgroundDataZeros(guideset, indel_of_interest)
-    if os.path.isfile(f"{FORECasT_path}/explanation_datasets/{indel_of_interest}.pkl"):
-        explanation_df = pd.read_pickle(f"{FORECasT_path}/explanation_datasets/{indel_of_interest}.pkl")
+    if os.path.isfile(f"{FORECasT_path}/explanation_datasets/dataset_size_1000/{indel_of_interest}.pkl"):
+        explanation_df = pd.read_pickle(f"{FORECasT_path}/explanation_datasets/dataset_size_1000/{indel_of_interest}.pkl")
     else:
         explanation_df = getExplanationData(guideset, indel_of_interest)
         explanation_df.to_pickle(f"{FORECasT_path}/explanation_datasets/{indel_of_interest}.pkl")
@@ -322,3 +322,7 @@ if __name__ == '__main__':
         print("Getting Shapley values for one sample...")
         shap_values, expected_value = getShapleyValues(model, background_df, explanation_df,
                                                        explain_sample=explain_sample)
+
+    # TODO 1: Increase size of explanation dataset.
+    # TODO 2: Increase nsamples by 1 order of magnitude.
+    # TODO 3: Put all the hyperparameters together, maybe in a config file?
