@@ -163,7 +163,6 @@ def getExplanationData(guidedata, ioi):
 
     oligo_idx = 0
     oligo_data = 0
-    dataset_size = 200
 
     current_oligo = int(guidedata['ID'][oligo_idx][5:])
     while current_oligo != oligo_of_interest:
@@ -179,8 +178,8 @@ def getExplanationData(guidedata, ioi):
 
     print('Collecting explanation data...')
     explanation_data = pd.DataFrame(columns=proc_samples.columns)
-    pbar = tqdm(total=dataset_size)
-    while oligo_data < dataset_size:
+    pbar = tqdm(total=config.dataset_size)
+    while oligo_data < config.dataset_size:
         current_oligo = guidedata['ID'][oligo_idx][5:]
         oligo_name = str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
         if oligo_name not in config.tijsterman_oligos:
@@ -221,23 +220,23 @@ def plotShapleyValues():
     shap.initjs()
     plt.rcParams['ytick.labelsize'] = 'small'
 
-    if explain_sample == 'one':
+    if config.shap_type == 'local':
         force = shap.force_plot(
-            expected_value, shap_values, explanation_df.iloc[explain_prediction, :], list(explanation_df.columns),
+            expected_value, shap_values, explanation_df.iloc[0, :], list(explanation_df.columns),
             show=False, contribution_threshold=0.1, text_rotation=0.4
         )
         shap.save_html(
-            f'{config.path}/shap_values_visualizations/force_plots/{list(explanation_df.index)[explain_prediction]}_forceplot.html',
+            f'{config.path}/shap_values_visualizations/force_plots/{list(explanation_df.index)[0]}_forceplot.html',
             force
         )
         plt.clf()
         plt.close()
 
-    if explain_sample == 'all':
+    if config.shap_type == 'global':
         shap.summary_plot(shap_values, background_df, list(background_df.columns))
 
 
-def getShapleyValues(model, background_data, explanation_data, explain_sample='all', link='logit'):
+def getShapleyValues(model, background_data, explanation_data, explain_sample='global', link='logit'):
     """
     Compute the SHAP values for the explanation data. If no specific sample is specified, the SHAP values of the entire
     explanation set are computed. If explain_sample is one, then automatically the first instance of the explanation set
@@ -251,27 +250,32 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='a
 
     explainer = KernelExplainer(model, background_data, link=link)
 
-    if explain_sample == 'all':
-        if os.path.isfile(f'{config.path}/shap_save_data/shapley_values/{config.indel_of_interest}_global_shap_values.pkl'):
+    shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
+    indel_name = config.indel_of_interest.split('_')[2]
+    exact_save_location = f'{indel_name}/n_{config.dataset_size}/nsamples={config.nsamples}'
+    num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
+    file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
+
+    if config.shap_type == 'global':
+        if num_files == config.num_files_to_obtain:
             shapley_val = pickle.load(
-                open(f'{config.path}/shap_save_data/shapley_values/{config.indel_of_interest}_global_shap_values.pkl', 'rb'))
+                open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data, nsamples=config.nsamples)
-            with open(f'{config.path}/shap_save_data/shapley_values/{config.indel_of_interest}_global_shap_values.pkl',
-                      'wb') as file:
+            shapley_val = explainer.shap_values(explanation_data, nsamples=int(float(config.nsamples)))
+            with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
                 pickle.dump(shapley_val, file)
             file.close()
 
         return shapley_val
 
-    elif explain_sample == 'one':
-        if os.path.isfile(f'{config.path}/shap_save_data/shapley_values/{config.indel_of_interest}_local_shap_values.pkl'):
+    elif config.shap_type == 'local':
+        if num_files == config.num_files_to_obtain:
             shapley_val, expected_val = pickle.load(
-                open(f'{config.path}/shap_save_data/shapley_values/{config.indel_of_interest}_local_shap_values.pkl', 'rb'))
+                open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=config.nsamples)
+            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=int(float(config.nsamples)))
             expected_val = explainer.expected_value
-            with open(f'{config.path}/shap_save_data/shapley_values/{config.indel_of_interest}_local_shap_values.pkl',
+            with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
                       'wb') as file:
                 pickle.dump((shap, expected_val), file)
             file.close()
@@ -284,6 +288,7 @@ if __name__ == '__main__':
     # Get the absolute path to where the folder that contains the FORECasT code is located.
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
+
     # if os.path.isfile(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl"):
     #     background_df = pd.read_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
     # else:
@@ -291,28 +296,21 @@ if __name__ == '__main__':
     #     background_df.to_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
 
     background_df = getBackgroundDataZeros(guideset, config.indel_of_interest)
-    if os.path.isfile(f"{config.path}/explanation_datasets/dataset_size_1000/{config.indel_of_interest}"):
-        explanation_df = pd.read_pickle(f"{config.path}/explanation_datasets/dataset_size_1000/{config.indel_of_interest}.pkl")
+
+    explanation_dataset_path = f'{config.path}/explanation_datasets/dataset_size_{config.dataset_size}'
+    explanation_dataset_name = f'{config.indel_of_interest}.pkl'
+
+    if os.path.isfile(f'{explanation_dataset_path}/{explanation_dataset_name}'):
+        explanation_df = pd.read_pickle(f'{explanation_dataset_path}/{explanation_dataset_name}')
     else:
         explanation_df = getExplanationData(guideset, config.indel_of_interest)
-        explanation_df.to_pickle(f"{config.path}/explanation_datasets/{config.indel_of_interest}.pkl")
+        explanation_df.to_pickle(f'{explanation_dataset_path}/{explanation_dataset_name}')
 
-    explain_prediction = 0  # note that the repair outcome of interest is in the first row of the explanation data
-    explain_sample = 'all'
-
-    if explain_sample == 'all':
+    if config.shap_type == 'global':
         print("Getting Shapley values for all samples...")
-        shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=explain_sample)
+        shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
     else:
         print("Getting Shapley values for one sample...")
-        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df,
-                                                       explain_sample=explain_sample)
+        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
 
     # TODO 1: Increase size of explanation dataset.
-
-    # TODO 3: Put all the hyperparameters together, maybe in a config file?
-
-    # TODO 4: Allow for parallelization of the process of obtaining shapley values by making sure that each output gets
-    # TODO 4: written to a unique file
-
-    # TODO 2: DONE Increase nsamples by 1 order of magnitude.
