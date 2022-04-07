@@ -250,18 +250,29 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
 
     explainer = KernelExplainer(model, background_data, link=link)
 
+    if isinstance(config.nsamples, float):
+        nsamples = int(config.nsamples)
+    elif isinstance(config.nsamples, str) and config.nsamples != 'auto':
+        nsamples = int(float(config.nsamples))
+    elif config.nsamples == 'auto':
+        nsamples = config.nsamples
+    else:
+        assert isinstance(config.nsamples, int), "config.nsamples must be an int, a string or a float."
+        nsamples = config.nsamples
+
     shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
     indel_name = config.indel_of_interest.split('_')[2]
     exact_save_location = f'{indel_name}/n_{config.dataset_size}/nsamples={config.nsamples}'
     num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
     file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
+    # check the type of config.nsamples
 
     if config.shap_type == 'global':
         if num_files == config.num_files_to_obtain:
             shapley_val = pickle.load(
                 open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data, nsamples=int(float(config.nsamples)))
+            shapley_val = explainer.shap_values(explanation_data, nsamples=nsamples)
             with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
                 pickle.dump(shapley_val, file)
             file.close()
@@ -273,7 +284,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
             shapley_val, expected_val = pickle.load(
                 open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=int(float(config.nsamples)))
+            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=nsamples)
             expected_val = explainer.expected_value
             with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
                       'wb') as file:
