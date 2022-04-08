@@ -9,10 +9,11 @@ import random
 import matplotlib.pyplot as plt
 import pickle as pkl
 from warnings import simplefilter
+import config
 
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 from predictor.model import readTheta, computePredictedProfile
-from predictor.predict import DEFAULT_MODEL, predictMutations, INDELGENTARGET_EXE, fetchRepReads
+from predictor.predict import predictMutations, INDELGENTARGET_EXE, fetchRepReads
 from selftarget.indel import tokFullIndel
 from selftarget.profile import fetchIndelSizeCounts
 from selftarget.view import plotProfiles, getAvgPreds
@@ -56,7 +57,7 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     if len(set(theta_feature_columns).union(set(feature_columns))) != len(theta_feature_columns):
         feature_matrix = feature_matrix[['Indel'] + theta_feature_columns]
 
-    feature_matrix.set_index('Indel', inplace=True)
+    # feature_matrix.set_index('Indel', inplace=True)
     # Predict the profile
     p_predict, _ = computePredictedProfile(feature_matrix, theta, theta_feature_columns)
     in_frame, out_frame, _ = fetchIndelSizeCounts(p_predict)
@@ -79,8 +80,10 @@ def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=F
     profile_freqs.sort(reverse=True)
     profile_freqs = profile_freqs[1:]
 
-    if profile_freqs[0] - profile_freqs[1] < 0.1:
-        plot = True
+    # if profile_freqs[0] - profile_freqs[1] < 0.1:
+    #     plot = True
+
+    plot = True
 
     if plot:
         plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
@@ -99,6 +102,7 @@ if __name__ == '__main__':
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
     tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
+    DEFAULT_MODEL = config.DEFAULT_MODEL
 
     dfs_container = []
     oligo_idx = 0
