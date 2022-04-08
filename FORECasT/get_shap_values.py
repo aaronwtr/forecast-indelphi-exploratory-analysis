@@ -260,36 +260,28 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
         assert isinstance(config.nsamples, int), "config.nsamples must be an int, a string or a float."
         nsamples = config.nsamples
 
-    shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
-    indel_name = config.indel_of_interest.split('_')[2]
-    exact_save_location = f'{indel_name}/n_{config.dataset_size}/nsamples={config.nsamples}'
-    num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
-    file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
-    # check the type of config.nsamples
+    shap_save_path_0 = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
+    indel_name_0 = config.indel_of_interest.split('_')[2]
+    exact_save_location_0 = f'{indel_name_0}/n_{config.dataset_size}/nsamples={config.nsamples}'
+    num_files_0 = len(list(os.listdir(f'{shap_save_path_0}/{exact_save_location_0}')))
+    file_name_prefix_0 = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
 
     if config.shap_type == 'global':
         if num_files == config.num_files_to_obtain:
             shapley_val = pickle.load(
-                open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files}.pkl', 'rb'))
+                open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
             shapley_val = explainer.shap_values(explanation_data, nsamples=nsamples)
-            with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
-                pickle.dump(shapley_val, file)
-            file.close()
 
         return shapley_val
 
     elif config.shap_type == 'local':
         if num_files == config.num_files_to_obtain:
             shapley_val, expected_val = pickle.load(
-                open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files}.pkl', 'rb'))
+                open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
             shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=nsamples)
             expected_val = explainer.expected_value
-            with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
-                      'wb') as file:
-                pickle.dump((shap, expected_val), file)
-            file.close()
 
         return shapley_val, expected_val
 
@@ -317,11 +309,26 @@ if __name__ == '__main__':
         explanation_df = getExplanationData(guideset, config.indel_of_interest)
         explanation_df.to_pickle(f'{explanation_dataset_path}/{explanation_dataset_name}')
 
+    shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
+    indel_name = config.indel_of_interest.split('_')[2]
+    exact_save_location = f'{indel_name}/n_{config.dataset_size}/nsamples={config.nsamples}'
+    num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
+    file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
+
     if config.shap_type == 'global':
         print("Getting Shapley values for all samples...")
         shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
+            pickle.dump(shap_values, file)
+        file.close()
+        print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
     else:
         print("Getting Shapley values for one sample...")
         shap_values, expected_value = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
+                  'wb') as file:
+            pickle.dump((shap, expected_value), file)
+        file.close()
+        print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
 
     # TODO 1: Increase size of explanation dataset.
