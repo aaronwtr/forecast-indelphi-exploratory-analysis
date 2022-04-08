@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pickle as pkl
 from warnings import simplefilter
 import config
+from tqdm import tqdm
 
 from predictor.features import calculateFeaturesForGenIndelFile, readFeaturesData
 from predictor.model import readTheta, computePredictedProfile
@@ -115,7 +116,8 @@ if __name__ == '__main__':
     data_found = False
     num_plots = 0
 
-    while num_plots != 30:
+    pbar = tqdm(total=100)
+    while num_plots != 100:
         while not data_found:
             current_oligo = guideset['ID'][oligo_idx][5:]
             oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -132,5 +134,8 @@ if __name__ == '__main__':
         feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
 
         num_plots += model(feature_data)
+        pbar.update(1)
         oligo_idx += 1
         data_found = False
+
+    pbar.close()
