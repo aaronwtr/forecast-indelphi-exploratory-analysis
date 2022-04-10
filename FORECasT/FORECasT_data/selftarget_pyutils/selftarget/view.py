@@ -48,7 +48,7 @@ def getAvgPreds(profiles, oligo):
     top_av_percs = [(np.mean([x[indel][-1] for x in counts]), 'Oligo_' + str(oligo) + '_' + str(indel)) for indel in union_top_indels]
     top_av_percs.sort(reverse=True)
 
-    top_av_percs = [x for x in top_av_percs if x[1].split('_')[2] == 'I2']
+    top_av_percs = [x for x in top_av_percs if x[1].split('_')[2] == 'I2' and x[0] > 0.3]
 
     return top_av_percs
 
@@ -80,7 +80,10 @@ def plotProfiles(profiles, rep_reads, pam_idxs, reverses, labels, oligo, title='
     max_insert = max([0] + [toks[1] for toks in indel_toks if toks[0] == 'I'])
 
     top_av_percs = getAvgPreds(profiles, oligo)
-    max_indels = 6 #max_lines/len(profiles)
+    if len(top_av_percs) == 0:
+        return 0
+
+    max_indels = 6  #max_lines/len(profiles)
 
     #Figure out Trims
     null_reads = [x['-'] if '-' in x else [x[y[1]] for y in ocnt if y[1] in x][0] for x,ocnt in zip(rep_reads, ocounts)]

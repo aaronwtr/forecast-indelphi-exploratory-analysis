@@ -87,8 +87,11 @@ def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=F
     plot = True
 
     if plot:
-        plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
+        pp = plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
                      title='Oligo ' + str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
+        if pp == 0:
+            return 0
+
         plt.savefig("FORECasT/repair_outcomes/oligo_%s.pdf" % current_oligo)
         plt.close()
         plot = False
@@ -116,8 +119,8 @@ if __name__ == '__main__':
     data_found = False
     num_plots = 0
 
-    pbar = tqdm(total=100)
-    while num_plots != 100:
+    pbar = tqdm(total=10)
+    while num_plots != 10:
         while not data_found:
             current_oligo = guideset['ID'][oligo_idx][5:]
             oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -134,7 +137,8 @@ if __name__ == '__main__':
         feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
 
         num_plots += model(feature_data)
-        pbar.update(1)
+        if model(feature_data) is not 0:
+            pbar.update(1)
         oligo_idx += 1
         data_found = False
 
