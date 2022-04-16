@@ -136,7 +136,7 @@ def getBackgroundDataZeros(guidedata):
     """
     Get a background data zero vector for the SHAP analysis to represent missing features.
     """
-    current_oligo = int(guidedata['ID'][0][5:])
+    current_oligo = 38
 
     samples = pd.read_pickle(
         f"{config.path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][0][0:5]) + '_' + str(current_oligo)
