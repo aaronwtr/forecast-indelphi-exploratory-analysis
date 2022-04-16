@@ -78,7 +78,7 @@ def predictionModel(input_data, pre_trained_model, feature_columns, plot=False):
 
 def getBackgroundData(guidedata, ioi):
     """
-    Get the background data for the SHAP analysis.
+    Get a background matrix for the SHAP analysis.
     """
     indel_idx = ioi.split('_')[2]
     oligo_of_interest = int(ioi.split('_')[1])
@@ -132,23 +132,16 @@ def getBackgroundData(guidedata, ioi):
     return background_data
 
 
-def getBackgroundDataZeros(guidedata, ioi):
+def getBackgroundDataZeros(guidedata):
     """
-    Get the background data for the SHAP analysis.
+    Get a background data zero vector for the SHAP analysis to represent missing features.
     """
-    # TODO Revise this function. Can be made much more straightforward.
-
-    oligo_of_interest = int(ioi.split('_')[1])
-    oligo_idx = 0
-
-    current_oligo = int(guidedata['ID'][oligo_idx][5:])
-    while current_oligo != oligo_of_interest:
-        oligo_idx += 1
-        current_oligo = int(guidedata['ID'][oligo_idx][5:])
+    current_oligo = int(guidedata['ID'][0][5:])
 
     samples = pd.read_pickle(
-        f"{config.path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        f"{config.path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][0][0:5]) + '_' + str(current_oligo)
     )
+
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
 
     background_data = pd.DataFrame(columns=proc_samples.columns)
@@ -287,18 +280,10 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
 
 
 if __name__ == '__main__':
-    # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
-    # Get the absolute path to where the folder that contains the FORECasT code is located.
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
 
-    # if os.path.isfile(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl"):
-    #     background_df = pd.read_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
-    # else:
-    #     background_df = getBackgroundData(guideset, indel_of_interest)
-    #     background_df.to_pickle(f"{FORECasT_path}/background_datasets/{indel_of_interest}.pkl")
-
-    background_df = getBackgroundDataZeros(guideset, config.indel_of_interest)
+    background_df = getBackgroundDataZeros(guideset)
 
     explanation_dataset_path = f'{config.path}/explanation_datasets/dataset_size_{config.dataset_size}'
     explanation_dataset_name = f'{config.indel_of_interest}.pkl'
@@ -330,5 +315,3 @@ if __name__ == '__main__':
             pickle.dump((shap, expected_value), file)
         file.close()
         print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
-
-    # TODO 1: Increase size of explanation dataset.
