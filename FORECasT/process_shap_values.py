@@ -104,10 +104,12 @@ if __name__ == '__main__':
     Loading data and obtaining correlations for independent Shapley value experiments run on the same data to assess the
     robustness of the Shapley value method. 
     '''
-    shap_correlations_plot = True
+
+    base_path = f'FORECasT/shap_save_data/shapley_values/global_explanations/I2/n_1000/nsamples={config.nsamples}/'
+    shap_values, features = open_shap_data(base_path)
+    shap_correlations_plot = False
+
     if shap_correlations_plot:
-        base_path = f'FORECasT/shap_save_data/shapley_values/global_explanations/D3/n_1000/nsamples={config.nsamples}/'
-        shap_values, features = open_shap_data(base_path)
         pccs = get_correlations(shap_values, features)
         plot_pccs(pccs)
 
@@ -115,6 +117,7 @@ if __name__ == '__main__':
     Generating summary plots for a single Shapley value experiment.
     '''
 
-    summary_plot = False
+    summary_plot = True
     if summary_plot:
-        shap.summary_plot(shap_values[0], features)
+        for value_matrix in shap_values:
+            shap.summary_plot(value_matrix, features)
