@@ -297,12 +297,12 @@ if __name__ == '__main__':
     shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
     indel_name = config.indel_of_interest.split('_')[2]
     exact_save_location = f'{indel_name}/n_{config.dataset_size}/nsamples={config.nsamples}'
-    num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
-    file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
 
     if config.shap_type == 'global':
         print("Getting Shapley values for all samples...")
         shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
+        file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
         with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
             pickle.dump(shap_values, file)
         file.close()
@@ -310,6 +310,8 @@ if __name__ == '__main__':
     else:
         print("Getting Shapley values for one sample...")
         shap_values, expected_value = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
+        file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
         with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
                   'wb') as file:
             pickle.dump((shap, expected_value), file)
