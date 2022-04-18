@@ -260,7 +260,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
     file_name_prefix_0 = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
 
     if config.shap_type == 'global':
-        if num_files == config.num_files_to_obtain:
+        if num_files_0 == config.num_files_to_obtain:
             shapley_val = pickle.load(
                 open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
