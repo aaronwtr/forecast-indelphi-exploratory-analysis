@@ -48,7 +48,7 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     isize, smallest_indel = min([(tokFullIndel(x)[1], x) for x in rep_reads]) if len(rep_reads) > 0 else (0, '-')
 
     if isize > 0:
-        left_trim = target_seq.find(rep_reads[smallest_indel][:10])
+        left_trim = target.find(rep_reads[smallest_indel][:10])
 
     os.remove(tmp_genindels_file)
 
@@ -65,7 +65,7 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     in_frame_perc = in_frame * 100.0 / (in_frame + out_frame)
     if add_null:
         p_predict['-'] = 1000
-        rep_reads['-'] = target_seq[left_trim:]
+        rep_reads['-'] = target[left_trim:]
 
     return p_predict, rep_reads, in_frame_perc
 
