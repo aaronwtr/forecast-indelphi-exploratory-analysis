@@ -6,6 +6,9 @@ from warnings import simplefilter
 import os
 from tqdm import tqdm
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from fitter import Fitter
 
 
 def KL(p1, p2, ignore_null=True, missing_count=0.5):
@@ -49,7 +52,7 @@ def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=F
     profile_freqs.sort(reverse=True)
     profile_freqs = profile_freqs[1:]
 
-    return sorted_profile
+    return profile_freqs
 
 
 if __name__ == '__main__':
@@ -58,19 +61,14 @@ if __name__ == '__main__':
     tijsterman_oligos = os.listdir(f'{config.path}/train/Tijsterman_Analyser')
     DEFAULT_MODEL = config.DEFAULT_MODEL
 
-    dfs_container = []
     oligo_idx = 0
 
-    target_seq_list = []
-    pam_idx_list = []
-    oligos_list = []
-    indels = []
-    pred_data = []
     data_found = False
     num_samples = 0
 
     kl_divs = {}
     analyze = True
+    baseline = False
 
     if not analyze:
         pbar = tqdm(total=int(float(config.performance_samples)))
@@ -91,13 +89,38 @@ if __name__ == '__main__':
             feature_data = pd.read_pickle(f"{config.path}/train/Tijsterman_Analyser/" + oligo_name)
             experimental_distribution = feature_data['Frac Sample Reads']
 
-            experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
-            experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
+            if baseline:
+                experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
+                experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
 
-            predicted_distribution = model(feature_data)
-            predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
+                baseline_distribution = pd.read_pickle(f"{config.path}/baseline_distribution.pkl")
 
-            KL_div = symmetricKL(experimental_distribution, predicted_distribution)
+                if len(experimental_distribution) > len(baseline_distribution):
+                    experiment_values = list(experimental_distribution.values())
+                    experiment_keys = list(experimental_distribution.keys())
+
+                    experiment_values = experiment_values[:len(baseline_distribution)]
+                    experiment_keys = experiment_keys[:len(baseline_distribution)]
+                    experimental_distribution = dict(zip(experiment_keys, experiment_values))
+                else:
+                    baseline_values = list(baseline_distribution.values())
+                    baseline_keys = list(baseline_distribution.keys())
+
+                    baseline_values = baseline_values[:len(experimental_distribution)]
+                    baseline_keys = baseline_keys[:len(experimental_distribution)]
+                    baseline_distribution = dict(zip(baseline_keys, baseline_values))
+
+                KL_div = symmetricKL(experimental_distribution, baseline_distribution)
+
+            else:
+                predicted_distribution = model(feature_data)
+                predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
+
+                experimental_distribution = feature_data['Frac Sample Reads']
+                experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
+
+                KL_div = symmetricKL(experimental_distribution, predicted_distribution)
+
             kl_divs[oligo_name] = KL_div
 
             num_samples += 1
@@ -107,11 +130,18 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs_baseline_N={config.performance_samples}.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
-        with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
-            kl_divs = pkl.load(f)
-            kl_divs_list = list(kl_divs.values())
-            mean_kl_div = np.mean(kl_divs_list)
-            print(mean_kl_div)
+        if baseline:
+            with open(f'{config.path}/kl_divs_baseline_N={config.performance_samples}.pkl', 'rb') as f:
+                kl_divs = pkl.load(f)
+                kl_divs_list = list(kl_divs.values())
+                mean_kl_div = np.mean(kl_divs_list)
+                print(mean_kl_div)
+        else:
+            with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+                kl_divs = pkl.load(f)
+                kl_divs_list = list(kl_divs.values())
+                mean_kl_div = np.mean(kl_divs_list)
+                print(mean_kl_div)
