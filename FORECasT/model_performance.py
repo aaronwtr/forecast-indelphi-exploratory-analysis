@@ -70,11 +70,11 @@ if __name__ == '__main__':
     num_samples = 0
 
     kl_divs = {}
-    analyze = False
+    analyze = True
 
     if not analyze:
-        pbar = tqdm(total=config.performance_samples)
-        while num_samples != config.performance_samples:
+        pbar = tqdm(total=int(float(config.performance_samples)))
+        while num_samples != int(float(config.performance_samples)):
             while not data_found:
                 current_oligo = guideset['ID'][oligo_idx][5:]
                 oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -92,8 +92,10 @@ if __name__ == '__main__':
             experimental_distribution = feature_data['Frac Sample Reads']
 
             experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
-            experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[1], reverse=True))
+            experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
+
             predicted_distribution = model(feature_data)
+            predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
 
             KL_div = symmetricKL(experimental_distribution, predicted_distribution)
             kl_divs[oligo_name] = KL_div
@@ -110,7 +112,6 @@ if __name__ == '__main__':
     else:
         with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
             kl_divs = pkl.load(f)
-            print(kl_divs)
             kl_divs_list = list(kl_divs.values())
             mean_kl_div = np.mean(kl_divs_list)
             print(mean_kl_div)
