@@ -42,3 +42,9 @@ FORECasT/shap_values_visualizations/summary_plots/results/D3/n_200/
 FORECasT/config.py
 
 FORECasT/kl_divs/metadata_kl_divs_plot.txt
+
+FORECasT/candidate_samples/single_nucleotide_insertions_freq_50\+/
+
+FORECasT/candidate_samples/large_deletions_freq_50\+/
+
+FORECasT/candidate_samples/dinucleotide_insertions_most_freq/
