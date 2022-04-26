@@ -6,6 +6,7 @@ from warnings import simplefilter
 import os
 from tqdm import tqdm
 import numpy as np
+import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fitter import Fitter
@@ -36,7 +37,7 @@ def KL(p1, p2, ignore_null=True, missing_count=0.5):
 
 
 def symmetricKL(profile1, profile2, ignore_null=True):
-    return 0.5*KL(profile1, profile2, ignore_null) + 0.5*KL(profile2, profile1, ignore_null)
+    return 0.5 * KL(profile1, profile2, ignore_null) + 0.5 * KL(profile2, profile1, ignore_null)
 
 
 def model(x):
@@ -53,6 +54,42 @@ def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=F
     profile_freqs = profile_freqs[1:]
 
     return profile_freqs
+
+
+def generate_boxplot():
+    with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+        kl_divs_forecast = pkl.load(f)
+    f.close()
+
+    with open(f'{config.path}/kl_divs/kl_divs_baseline_N=1e03.pkl', 'rb') as f:
+        kl_divs_baseline = pkl.load(f)
+    f.close()
+
+    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
+        kl_divs_lindel = pkl.load(f)
+    f.close()
+
+    forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
+    forecast_dict = {'FORECasT': forecast_values}
+
+    baseline_values = [kl_divs_baseline[x] for x in kl_divs_baseline]
+    baseline_dict = {'Baseline': baseline_values}
+
+    lindel_values = [kl_divs_lindel[x] for x in kl_divs_lindel]
+    lindel_dict = {'Lindel': lindel_values}
+
+    df = pd.DataFrame(baseline_dict)
+    df = df.append(pd.DataFrame(forecast_dict))
+    df = df.append(pd.DataFrame(lindel_dict))
+    df = df.melt(var_name='Model')
+
+    df.rename(columns={'value': 'KL divergence'}, inplace=True)
+    fig = px.box(df, x="Model", y="KL divergence", color="Model",
+                 points='all')
+
+    fig.update_layout(title_text="Performance as measured by KL divergence on FORECasT data (N=1000)")
+
+    fig.show()
 
 
 if __name__ == '__main__':
@@ -130,17 +167,17 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs_baseline_N={config.performance_samples}.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_baseline_N={config.performance_samples}.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
         if baseline:
-            with open(f'{config.path}/kl_divs_baseline_N={config.performance_samples}.pkl', 'rb') as f:
+            with open(f'{config.path}/kl_divs/kl_divs_baseline_N={config.performance_samples}.pkl', 'rb') as f:
                 kl_divs = pkl.load(f)
                 kl_divs_list = list(kl_divs.values())
                 mean_kl_div = np.mean(kl_divs_list)
                 print(mean_kl_div)
         else:
-            with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+            with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
                 kl_divs = pkl.load(f)
                 kl_divs_list = list(kl_divs.values())
                 mean_kl_div = np.mean(kl_divs_list)
