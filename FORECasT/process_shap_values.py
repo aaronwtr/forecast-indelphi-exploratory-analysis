@@ -92,7 +92,7 @@ def plot_pccs(correlations):
         pcc = pcc.to_numpy()
         plt.scatter(pcc, feature_labels, color=colormap_list[i], alpha=0.8, label=f'Shapley value correlations {i + 1}')
 
-    plt.legend(loc='upper left')
+    plt.legend(loc='lower left')
     plt.yticks(feature_labels)
     plt.xlim(0, 1.1)
     plt.tight_layout()
@@ -105,9 +105,9 @@ if __name__ == '__main__':
     robustness of the Shapley value method. 
     '''
 
-    base_path = f'FORECasT/shap_save_data/shapley_values/global_explanations/I2/n_1000/nsamples={config.nsamples}/Oligo_5772/'
+    base_path = f'FORECasT/shap_save_data/shapley_values/global_explanations/D3/n_1000/nsamples={config.nsamples}/'
     shap_values, features = open_shap_data(base_path)
-    shap_correlations_plot = True
+    shap_correlations_plot = False
 
     if shap_correlations_plot:
         pccs = get_correlations(shap_values, features)
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     Generating summary plots for a single Shapley value experiment.
     '''
 
-    summary_plot = False
+    summary_plot = True
     if summary_plot:
         for value_matrix in shap_values:
             shap.summary_plot(value_matrix, features)
