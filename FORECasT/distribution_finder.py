@@ -39,6 +39,7 @@ def generating_average_distribution():
                 experimental_distribution_dict[indel] = []
             experimental_distribution_dict[indel].append(experimental_distribution[indel])
 
+        print(experimental_distribution)
         pbar.update(1)
         oligo_idx += 1
         num_samples += 1
@@ -107,4 +108,10 @@ if __name__ == '__main__':
     tijsterman_oligos = os.listdir(f'{config.path}/train/Tijsterman_Analyser')
     DEFAULT_MODEL = config.DEFAULT_MODEL
 
-    select_candidate_samples()
+    candidate_samples_large_del = os.listdir(f'{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/')
+    for sample in candidate_samples_large_del:
+        print(sample)
+        sample_path = f"{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/{sample}"
+        sample_data = pd.read_pickle(sample_path)
+
+        print(sample_data)
