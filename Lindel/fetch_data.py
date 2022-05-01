@@ -6,6 +6,7 @@ import config
 import os
 import pickle as pkl
 import Lindel
+import matplotlib.pyplot as plt
 
 
 def gen_cmatrix(indels, label):
@@ -182,23 +183,30 @@ def get_features(seq, features):
     return features, feature_labels
 
 
+def fetch_candidate_samples():
+    cand_sample_path = f"C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/FORECasT/candidate_samples"
+    dirs = os.listdir(cand_sample_path)
+    candidate_samples = []
+
+    for folder in dirs:
+        files = os.listdir(f"{cand_sample_path}/{folder}")
+        for file in files:
+            candidate_samples.append(file)
+
+    candidate_samples = [int(x.split('_')[1]) for x in candidate_samples]
+
+    return candidate_samples
+
+
 def get_train_data(guidedata, prereq):
-    if os.path.exists(f'{config.path}/training_features.pkl'):
-        feature_matrix = pd.read_pickle(f'{config.path}/training_features.pkl')
+    if os.path.exists(f'{config.path}/training_data.pkl'):
+        train_data = pd.read_pickle(f'{config.path}/training_data.pkl')
+        return train_data
     else:
-        cand_sample_path = f"C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/FORECasT/candidate_samples"
-        dirs = os.listdir(cand_sample_path)
-        candidate_samples = []
+        candidate_samples = fetch_candidate_samples()
 
         tijsterman_oligos = config.tijsterman_oligos
         ground_truth_dict = {}
-
-        for folder in dirs:
-            files = os.listdir(f"{cand_sample_path}/{folder}")
-            for file in files:
-                candidate_samples.append(file)
-
-        candidate_samples = [int(x.split('_')[1]) for x in candidate_samples]
 
         fetched_data = 0
         oligo_idx = 0
@@ -248,11 +256,80 @@ def get_train_data(guidedata, prereq):
 
         pbar.close()
 
-        feature_matrix = np.array(feature_vectors)
         feature_matrix = pd.DataFrame(feature_vectors, columns=feature_labels)
         feature_matrix.index = sample_names
 
-        # pad the value arrays in ground_truth_dict to be the same length as the maximum length of the values
+        max_len = max([len(x) for x in ground_truth_dict.values()])
+        for key in ground_truth_dict.keys():
+            ground_truth_dict[key] = np.pad(ground_truth_dict[key], (0, max_len - len(ground_truth_dict[key])),
+                                            'constant')
+
+        ground_truths = pd.DataFrame(ground_truth_dict)
+
+        return feature_matrix, ground_truths
+
+
+def get_test_data(guidedata, prereq):
+    if os.path.exists(f'{config.path}/test_data.pkl'):
+        test_data = pd.read_pickle(f'{config.path}/training_data.pkl')
+        return test_data
+    else:
+        candidate_samples = fetch_candidate_samples()
+
+        tijsterman_oligos = config.tijsterman_oligos
+        ground_truth_dict = {}
+
+        fetched_data = 0
+        oligo_idx = 0
+        sample_names = []
+        feature_vectors = []
+
+        label, rev_index, mh_features, frame_shift = prereq
+
+        print('Collecting testing data...')
+
+        pbar = tqdm(total=len(candidate_samples))
+        while fetched_data < len(candidate_samples):
+            cont = False
+            current_oligo = guidedata['ID'][oligo_idx][5:]
+            seq = guidedata['TargetSequence'][oligo_idx]
+            if int(current_oligo) in candidate_samples and f"Oligo_{current_oligo}" in tijsterman_oligos:
+                pam_idx = guidedata['PAM Index'][oligo_idx]
+                nt_to_delete = int(pam_idx) - 33
+                seq = seq[nt_to_delete:]
+                if check_pam(seq):
+                    cont = True
+
+            oligo_idx += 1
+
+            if cont:
+                sample_names.append(f'Oligo_{current_oligo}')
+                features_tmp, feature_labels = get_features(seq, mh_features)
+
+                exp_data = pd.read_pickle(f"{config.forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
+                                          str(current_oligo))
+
+                ground_truth = exp_data['Frac Sample Reads']
+                ground_truth_labels = exp_data['Indel']
+
+                for i, indel in enumerate(ground_truth_labels):
+                    if indel not in list(ground_truth_dict.keys()):
+                        ground_truth_dict[indel] = [ground_truth[i]]
+                    else:
+                        ground_truth_dict[indel].append(ground_truth[i])
+
+                if not len(feature_vectors):
+                    feature_vectors = features_tmp
+                else:
+                    feature_vectors = np.append(feature_vectors, features_tmp, axis=0)
+                pbar.update(1)
+                fetched_data += 1
+
+        pbar.close()
+
+        feature_matrix = pd.DataFrame(feature_vectors, columns=feature_labels)
+        feature_matrix.index = sample_names
+
         max_len = max([len(x) for x in ground_truth_dict.values()])
         for key in ground_truth_dict.keys():
             ground_truth_dict[key] = np.pad(ground_truth_dict[key], (0, max_len - len(ground_truth_dict[key])), 'constant')
@@ -266,5 +343,20 @@ if __name__ == '__main__':
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
 
-    training_data = get_train_data(guideset, prerequesites)
-    pkl.dump(training_data, open(os.path.join(Lindel.__path__[0], 'training_data.pkl'), 'wb'))
+    # training_data = get_train_data(guideset, prerequesites)
+    # pd.to_pickle(training_data, f'{config.path}/training_data.pkl')
+    #
+    # test_data = get_test_data(guideset, prerequesites)
+    # pd.to_pickle(test_data, f'{config.path}/test_data.pkl')
+
+
+    # load pkl file
+    train_loss = pd.read_pickle(f'{config.path}/train_loss.pkl')
+    print(train_loss)
+
+    # plot training loss
+    plt.plot(train_loss)
+    plt.title('Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show()
