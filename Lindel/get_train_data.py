@@ -190,6 +190,9 @@ def get_train_data(guidedata, prereq):
         dirs = os.listdir(cand_sample_path)
         candidate_samples = []
 
+        tijsterman_oligos = config.tijsterman_oligos
+        ground_truth_dict = {}
+
         for folder in dirs:
             files = os.listdir(f"{cand_sample_path}/{folder}")
             for file in files:
@@ -211,7 +214,7 @@ def get_train_data(guidedata, prereq):
             cont = False
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
-            if int(current_oligo) not in candidate_samples:
+            if int(current_oligo) not in candidate_samples and f"Oligo_{current_oligo}" in tijsterman_oligos:
                 pam_idx = guidedata['PAM Index'][oligo_idx]
                 nt_to_delete = int(pam_idx) - 33
                 seq = seq[nt_to_delete:]
@@ -224,9 +227,17 @@ def get_train_data(guidedata, prereq):
                 sample_names.append(f'Oligo_{current_oligo}')
                 features_tmp, feature_labels = get_features(seq, mh_features)
 
-                ground_truth = guidedata['Frac Sample Reads'][oligo_idx]
-                # TODO Add connection to Tijsterman Analyzer data to obtain ground truth data
-                print(ground_truth)
+                exp_data = pd.read_pickle(f"{config.forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
+                                          str(current_oligo))
+
+                ground_truth = exp_data['Frac Sample Reads']
+                ground_truth_labels = exp_data['Indel']
+
+                for i, indel in enumerate(ground_truth_labels):
+                    if indel not in list(ground_truth_dict.keys()):
+                        ground_truth_dict[indel] = [ground_truth[i]]
+                    else:
+                        ground_truth_dict[indel].append(ground_truth[i])
 
                 if not len(feature_vectors):
                     feature_vectors = features_tmp
@@ -241,12 +252,19 @@ def get_train_data(guidedata, prereq):
         feature_matrix = pd.DataFrame(feature_vectors, columns=feature_labels)
         feature_matrix.index = sample_names
 
-    return feature_matrix
+        # pad the value arrays in ground_truth_dict to be the same length as the maximum length of the values
+        max_len = max([len(x) for x in ground_truth_dict.values()])
+        for key in ground_truth_dict.keys():
+            ground_truth_dict[key] = np.pad(ground_truth_dict[key], (0, max_len - len(ground_truth_dict[key])), 'constant')
+
+        ground_truths = pd.DataFrame(ground_truth_dict)
+
+        return feature_matrix, ground_truths
 
 
 if __name__ == '__main__':
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
 
-    feature_data = get_train_data(guideset, prerequesites)
-    feature_data.to_pickle(f"training_features.pkl")
+    training_data = get_train_data(guideset, prerequesites)
+    pkl.dump(training_data, open(os.path.join(Lindel.__path__[0], 'training_data.pkl'), 'wb'))
