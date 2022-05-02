@@ -70,35 +70,106 @@ def predictMutations(input_data, theta_file, target, pam, add_null=True):
     return p_predict, rep_reads, in_frame_perc
 
 
-def model(x):
-    return predictionModel(x, DEFAULT_MODEL, target_seq, pam_idx, num_plots)
+class RepairOutcomeGenerator:
+    def __init__(self):
+        self.current_oligo = None
+        self.pam_idx = None
+        self.target_seq = None
+        self.folder = None
 
+    def model(self, x):
+        return ROG.predictionModel(x, DEFAULT_MODEL, self.target_seq, self.pam_idx)
 
-def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=False):
-    profile, rep_reads, in_frame = predictMutations(input_data, pre_trained_model, target, pam)
+    def predictionModel(self, input_data, pre_trained_model, target, pam, plot=False):
+        profile, rep_reads, in_frame = predictMutations(input_data, pre_trained_model, target, pam)
 
-    profile_freqs = list(profile.values())
-    profile_freqs.sort(reverse=True)
-    profile_freqs = profile_freqs[1:]
+        profile_freqs = list(profile.values())
+        profile_freqs.sort(reverse=True)
+        profile_freqs = profile_freqs[1:]
 
-    # if profile_freqs[0] - profile_freqs[1] < 0.1:
-    #     plot = True
+        # if profile_freqs[0] - profile_freqs[1] < 0.1:
+        #     plot = True
 
-    plot = True
+        plot = True
 
-    if plot:
-        pp = plotProfiles([profile], [rep_reads], [pam_idx], [False], ['Predicted'], current_oligo,
-                     title='Oligo ' + str(current_oligo) + ' In Frame: %.1f%%' % in_frame)
-        if pp == 0:
-            return 0
+        if plot:
+            pp = plotProfiles([profile], [rep_reads], [self.pam_idx], [False], ['Predicted'], self.current_oligo,
+                              title='Oligo ' + str(self.current_oligo) + ' In Frame: %.1f%%' % in_frame)
+            if pp == 0:
+                return 0
 
-        plt.savefig("FORECasT/repair_outcomes/oligo_%s.pdf" % current_oligo)
-        plt.close()
-        plot = False
+            plt.savefig(f"FORECasT/repair_outcomes/{self.folder}/oligo_{self.current_oligo}.pdf")
+            plt.close()
+            plot = False
 
-        return 1
+            return 1
 
-    return 0
+        return 0
+
+    def get_repair_outcome_profiles(self):
+        oligo_idx = 0
+
+        data_found = False
+        num_plots = 0
+
+        pbar = tqdm(total=10)
+        while num_plots != 10:
+            while not data_found:
+                current_oligo = guideset['ID'][oligo_idx][5:]
+                oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+                if oligo_name not in tijsterman_oligos:
+                    oligo_idx += 1
+                    continue
+                data_found = True
+
+            self.current_oligo = guideset['ID'][oligo_idx][5:]
+            oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+
+            self.target_seq = guideset['TargetSequence'][oligo_idx]
+            self.pam_idx = guideset['PAM Index'][oligo_idx]
+            feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
+
+            num_plots += self.model(feature_data)
+            if self.model(feature_data) is not 0:
+                pbar.update(1)
+            oligo_idx += 1
+            data_found = False
+
+        pbar.close()
+
+    def get_candidate_repair_profiles(self):
+        sample_types = os.listdir(config.candidate_samples)
+
+        for sample_type in sample_types:
+            self.folder = sample_type
+            oligo_idx = 0
+            cont = False
+            data_found = False
+            num_plots = 0
+            candidate_samples = os.listdir(f'{config.candidate_samples}/{sample_type}')
+            while not data_found:
+                current_oligo = guideset['ID'][oligo_idx][5:]
+                oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+                if oligo_name in candidate_samples:
+                    cont = True
+                else:
+                    oligo_idx += 1
+
+                if cont:
+                    self.current_oligo = guideset['ID'][oligo_idx][5:]
+                    oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+
+                    self.target_seq = guideset['TargetSequence'][oligo_idx]
+                    self.pam_idx = guideset['PAM Index'][oligo_idx]
+                    feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
+
+                    self.model(feature_data)
+                    num_plots += 1
+                    oligo_idx += 1
+                    cont = False
+
+                if num_plots == len(candidate_samples):
+                    data_found = True
 
 
 if __name__ == '__main__':
@@ -108,38 +179,5 @@ if __name__ == '__main__':
     tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
     DEFAULT_MODEL = config.DEFAULT_MODEL
 
-    dfs_container = []
-    oligo_idx = 0
-
-    target_seq_list = []
-    pam_idx_list = []
-    oligos_list = []
-    indels = []
-    pred_data = []
-    data_found = False
-    num_plots = 0
-
-    pbar = tqdm(total=10)
-    while num_plots != 10:
-        while not data_found:
-            current_oligo = guideset['ID'][oligo_idx][5:]
-            oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
-            if oligo_name not in tijsterman_oligos:
-                oligo_idx += 1
-                continue
-            data_found = True
-
-        current_oligo = guideset['ID'][oligo_idx][5:]
-        oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
-
-        target_seq = guideset['TargetSequence'][oligo_idx]
-        pam_idx = guideset['PAM Index'][oligo_idx]
-        feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
-
-        num_plots += model(feature_data)
-        if model(feature_data) is not 0:
-            pbar.update(1)
-        oligo_idx += 1
-        data_found = False
-
-    pbar.close()
+    ROG = RepairOutcomeGenerator()
+    ROG.get_candidate_repair_profiles()

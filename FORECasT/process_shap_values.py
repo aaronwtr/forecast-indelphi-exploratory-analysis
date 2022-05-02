@@ -121,3 +121,8 @@ if __name__ == '__main__':
     if summary_plot:
         for value_matrix in shap_values:
             shap.summary_plot(value_matrix, features)
+
+    # TODO 1 Add dot indicating the |mean| of the Shapley value for each feature.
+
+    # TODO 2 Consider incorporating Pearson correlation between each feature as a measure of the robustness of the Shapley
+    # TODO 2 value method.

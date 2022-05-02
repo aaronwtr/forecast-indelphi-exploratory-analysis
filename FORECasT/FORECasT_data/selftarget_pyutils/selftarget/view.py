@@ -48,7 +48,6 @@ def getAvgPreds(profiles, oligo):
     top_av_percs = [(np.mean([x[indel][-1] for x in counts]), 'Oligo_' + str(oligo) + '_' + str(indel)) for indel in union_top_indels]
     top_av_percs.sort(reverse=True)
 
-    print(top_av_percs)
     # top_av_percs = [x for x in top_av_percs if x[1].split('_')[2] == 'I2' and x[0] > 0.3]
 
     return top_av_percs
