@@ -53,11 +53,11 @@ def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=F
     profile_freqs.sort(reverse=True)
     profile_freqs = profile_freqs[1:]
 
-    return profile_freqs
+    return sorted_profile
 
 
 def generate_boxplot():
-    with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+    with open(f'{config.path}/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
         kl_divs_forecast = pkl.load(f)
     f.close()
 
@@ -65,8 +65,12 @@ def generate_boxplot():
         kl_divs_baseline = pkl.load(f)
     f.close()
 
-    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
+    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_1.pkl', 'rb') as f:
         kl_divs_lindel = pkl.load(f)
+    f.close()
+
+    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_trained.pkl', 'rb') as f:
+        kl_divs_lindel_trained = pkl.load(f)
     f.close()
 
     forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
@@ -78,9 +82,13 @@ def generate_boxplot():
     lindel_values = [kl_divs_lindel[x] for x in kl_divs_lindel]
     lindel_dict = {'Lindel': lindel_values}
 
+    lindel_trained_values = [kl_divs_lindel_trained[x] for x in kl_divs_lindel_trained]
+    lindel_trained_dict = {'Lindel_trained': lindel_trained_values}
+
     df = pd.DataFrame(baseline_dict)
     df = df.append(pd.DataFrame(forecast_dict))
     df = df.append(pd.DataFrame(lindel_dict))
+    df = df.append(pd.DataFrame(lindel_trained_dict))
     df = df.melt(var_name='Model')
 
     df.rename(columns={'value': 'KL divergence'}, inplace=True)
@@ -125,11 +133,10 @@ if __name__ == '__main__':
             pam_idx = guideset['PAM Index'][oligo_idx]
             feature_data = pd.read_pickle(f"{config.path}/train/Tijsterman_Analyser/" + oligo_name)
             experimental_distribution = feature_data['Frac Sample Reads']
+            experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
+            experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
 
             if baseline:
-                experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
-                experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
-
                 baseline_distribution = pd.read_pickle(f"{config.path}/baseline_distribution.pkl")
 
                 if len(experimental_distribution) > len(baseline_distribution):
@@ -153,9 +160,6 @@ if __name__ == '__main__':
                 predicted_distribution = model(feature_data)
                 predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
 
-                experimental_distribution = feature_data['Frac Sample Reads']
-                experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
-
                 KL_div = symmetricKL(experimental_distribution, predicted_distribution)
 
             kl_divs[oligo_name] = KL_div
@@ -167,7 +171,7 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs/kl_divs_baseline_N={config.performance_samples}.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
         if baseline:
@@ -177,8 +181,10 @@ if __name__ == '__main__':
                 mean_kl_div = np.mean(kl_divs_list)
                 print(mean_kl_div)
         else:
-            with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+            with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_trained.pkl', 'rb') as f:
                 kl_divs = pkl.load(f)
                 kl_divs_list = list(kl_divs.values())
                 mean_kl_div = np.mean(kl_divs_list)
                 print(mean_kl_div)
+
+        generate_boxplot()

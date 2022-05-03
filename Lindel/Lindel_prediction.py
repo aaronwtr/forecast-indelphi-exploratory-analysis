@@ -18,9 +18,18 @@ import config
 import os
 from Lindel.Predictor import *
 from get_shap_values import check_pam
+import torch
+from model import *
 
 
-def predict_all_samples(save=False):
+def predict_all_samples(save=False, pretrained=False, **kwargs):
+    if 'data' in kwargs:
+        x, out_data = kwargs['data']
+        pretrained = False
+        weights = torch.load(open(f'{config.path}/model_params/model_params_387_epochs_0.001_weight_decay.pkl', 'rb'))
+    else:
+        weights = pre_trained_weights
+
     for i in tqdm(range(guideset.shape[0])):
         cont = False
         current_sample = guideset.iloc[i]['ID']
@@ -39,8 +48,19 @@ def predict_all_samples(save=False):
 
         filename = current_sample.split('_')[0:2]
         filename = '_'.join(filename)
-        y_hat, fs = gen_prediction(seq, weights, prerequesites)
-        filename += '_fs=' + str(round(fs, 3)) + '.txt'
+        if pretrained:
+            y_hat, fs = gen_prediction(seq, weights, prerequesites)
+            filename += '_fs=' + str(round(fs, 3)) + '.txt'
+        else:
+            test_data, _ = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
+            test_data = test_data.values
+            test_data = torch.tensor(test_data, dtype=torch.float)
+
+            model = LogisticRegression(test_data[1], 1)
+            model.load_state_dict(weights)
+
+            y_hat = model()
+
         rev_index = prerequesites[1]
         pred_freq = {}
         for j in range(len(y_hat)):
@@ -69,9 +89,14 @@ def predict_all_samples(save=False):
     return
 
 
-def predict_single_sample(current_oligo, guideset, save=False):
-    w = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
-    pres = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
+def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, **kwargs):
+    if 'data' in kwargs:
+        x, out_data = kwargs['data']
+        pretrained = False
+        weights = torch.load(open(f'{config.path}/model_params/model_params_387_epochs_0.001_weight_decay.pkl', 'rb'))
+    else:
+        weights = pre_trained_weights
+
     for index, row in guideset.iterrows():
         if int(current_oligo) == index:
             pam_idx = row['PAM Index']
@@ -82,55 +107,82 @@ def predict_single_sample(current_oligo, guideset, save=False):
             else:
                 return 0
 
-    filename = f'Oligo{current_oligo}'
+    filename = f'Oligo_{current_oligo}'
 
-    y_hat, fs = gen_prediction(seq, w, pres)
-    filename += '_fs=' + str(round(fs, 3)) + '.txt'
-    rev_index = pres[1]
-    pred_freq = {}
-    for i in range(len(y_hat)):
-        if y_hat[i] != 0:
-            pred_freq[rev_index[i]] = y_hat[i]
-    pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+    if pretrained:
+        y_hat, fs = gen_prediction(seq, weights, prerequesites)
+        filename += '_fs=' + str(round(fs, 3)) + '.txt'
 
-    write_file(seq, pred_sorted, pred_freq, filename)
-    path_to_file = f'repair_outcomes/cache/{filename}'
-    current_repair_outcome = open_file(path_to_file)
+        rev_index = prerequesites[1]
+        pred_freq = {}
+        for i in range(len(y_hat)):
+            if y_hat[i] != 0:
+                pred_freq[rev_index[i]] = y_hat[i]
+        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
 
-    column_names = ['Target sequence outcome', 'Integration frequency', 'Indel label']
-    current_repair_outcome.columns = column_names
-    indel_names = list(current_repair_outcome['Indel label'])
-    int_freqs = list(current_repair_outcome['Integration frequency'])
+        write_file(seq, pred_sorted, pred_freq, filename)
+        path_to_file = f'repair_outcomes/cache/{filename}'
+        current_repair_outcome = open_file(path_to_file)
 
-    indel_names = [x.split('+')[0] for x in indel_names]
-    indel_names = [x.split('  ')[0] for x in indel_names]
+        column_names = ['Target sequence outcome', 'Integration frequency', 'Indel label']
+        current_repair_outcome.columns = column_names
+        indel_names = list(current_repair_outcome['Indel label'])
+        int_freqs = list(current_repair_outcome['Integration frequency'])
 
-    indels_done = []
-    for indel in indel_names:
-        count = 0
-        if indel not in indels_done:
-            count += 1
-            for i in range(len(indel_names)):
-                if indel_names[i] == indel:
-                    indel_names[i] = indel + '_' + str(count)
-                    indel_names[i] = indel_names[i].split('_')[0] + '_' + indel_names[i].split('_')[1]
-                    count += 1
-        indels_done.append(indel)
+        indel_names = [x.split('+')[0] for x in indel_names]
+        indel_names = [x.split('  ')[0] for x in indel_names]
 
-    pred_freq = {}
-    for i in range(len(int_freqs)):
-        if int_freqs[i] != 0:
-            pred_freq[indel_names[i]] = int_freqs[i]/100
-    pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-    # transform pred_sorted into a dictionary
-    pred_sorted = {k: v for k, v in pred_sorted}
+        indels_done = []
+        for indel in indel_names:
+            count = 0
+            if indel not in indels_done:
+                count += 1
+                for i in range(len(indel_names)):
+                    if indel_names[i] == indel:
+                        indel_names[i] = indel + '_' + str(count)
+                        indel_names[i] = indel_names[i].split('_')[0] + '_' + indel_names[i].split('_')[1]
+                        count += 1
+            indels_done.append(indel)
+
+        pred_freq = {}
+        for i in range(len(int_freqs)):
+            if int_freqs[i] != 0:
+                pred_freq[indel_names[i]] = int_freqs[i] / 100
+        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+
+        pred_sorted = {k: v for k, v in pred_sorted}
+
+    else:
+        cols = list(out_data.columns.values)
+        x = x.loc[f'Oligo_{current_oligo}']
+        x = x.values
+        x = torch.tensor(x, dtype=torch.float)
+
+        model = LogisticRegression(x.shape[0], 4776)
+        model.load_state_dict(weights)
+
+        y_hat = model(x).tolist()
+        y_hat = softmax(y_hat)
+
+        pred_freq = {}
+        for i in range(len(y_hat)):
+            pred_freq[cols[i]] = y_hat[i]
+
+        pred_sorted = dict(sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True))
 
     return pred_sorted
 
 
 if __name__ == '__main__':
-    weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
+    pre_trained_weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
+    training_data = pkl.load(open(f'{config.path}/training_data.pkl', 'rb'))
+    # get row names of test data in list
+    oligos = list(training_data[0][:1000].index)
+    oligos_idx = [int(x.split('_')[1]) for x in oligos]
 
-    predict_all_samples()
+    predicted_freqs = []
+    for idx in tqdm(oligos_idx):
+        predicted_freqs.append(predict_single_sample(idx, guideset, data=training_data))
+        # predicted_freqs is a list of dicts for the specified samples

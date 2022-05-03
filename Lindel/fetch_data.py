@@ -269,9 +269,9 @@ def get_train_data(guidedata, prereq):
         return feature_matrix, ground_truths
 
 
-def get_test_data(guidedata, prereq):
+def get_test_data(guidedata, prereq, train_indels):
     if os.path.exists(f'{config.path}/test_data.pkl'):
-        test_data = pd.read_pickle(f'{config.path}/training_data.pkl')
+        test_data = pd.read_pickle(f'{config.path}/test_data.pkl')
         return test_data
     else:
         candidate_samples = fetch_candidate_samples()
@@ -335,7 +335,12 @@ def get_test_data(guidedata, prereq):
             ground_truth_dict[key] = np.pad(ground_truth_dict[key], (0, max_len - len(ground_truth_dict[key])), 'constant')
 
         ground_truths = pd.DataFrame(ground_truth_dict)
+        gt_columns = list(ground_truths.columns)
+        indels_to_add = train_indels - len(gt_columns)
+        for i in range(indels_to_add):
+            ground_truths[f'Indel_{i}'] = np.zeros(len(ground_truths))
 
+        print(ground_truths)
         return feature_matrix, ground_truths
 
 
@@ -345,6 +350,7 @@ if __name__ == '__main__':
 
     training_data = get_train_data(guideset, prerequesites)
     pd.to_pickle(training_data, f'{config.path}/training_data.pkl')
+    train_size = training_data[1].shape[1]
 
-    test_data = get_test_data(guideset, prerequesites)
+    test_data = get_test_data(guideset, prerequesites, train_size)
     pd.to_pickle(test_data, f'{config.path}/test_data.pkl')

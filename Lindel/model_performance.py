@@ -1,6 +1,7 @@
 import pandas as pd
 import pickle as pkl
 import config
+import plotly.express as px
 from warnings import simplefilter
 import os
 from tqdm import tqdm
@@ -36,10 +37,55 @@ def symmetricKL(profile1, profile2, ignore_null=True):
     return 0.5 * KL(profile1, profile2, ignore_null) + 0.5 * KL(profile2, profile1, ignore_null)
 
 
+def generate_boxplot():
+    with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+        kl_divs_forecast = pkl.load(f)
+    f.close()
+
+    with open(f'{config.path}/kl_divs/kl_divs_baseline_N=1e03.pkl', 'rb') as f:
+        kl_divs_baseline = pkl.load(f)
+    f.close()
+
+    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
+        kl_divs_lindel = pkl.load(f)
+    f.close()
+
+    with open(f'{config.path}/kl_divs_N=1e03_trained.pkl', 'rb') as f:
+        kl_divs_lindel_trained = pkl.load(f)
+    f.close()
+
+    forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
+    forecast_dict = {'FORECasT': forecast_values}
+
+    baseline_values = [kl_divs_baseline[x] for x in kl_divs_baseline]
+    baseline_dict = {'Baseline': baseline_values}
+
+    lindel_values = [kl_divs_lindel[x] for x in kl_divs_lindel]
+    lindel_dict = {'Lindel': lindel_values}
+
+    lindel_trained_values = [kl_divs_lindel_trained[x] for x in kl_divs_lindel_trained]
+    lindel_trained_dict = {'Lindel_trained': lindel_trained_values}
+
+    df = pd.DataFrame(baseline_dict)
+    df = df.append(pd.DataFrame(forecast_dict))
+    df = df.append(pd.DataFrame(lindel_dict))
+    df = df.append(pd.DataFrame(lindel_trained_dict))
+    df = df.melt(var_name='Model')
+
+    df.rename(columns={'value': 'KL divergence'}, inplace=True)
+    fig = px.box(df, x="Model", y="KL divergence", color="Model",
+                 points='all')
+
+    fig.update_layout(title_text="Performance as measured by KL divergence on FORECasT data (N=1000)")
+
+    fig.show()
+
+
 if __name__ == '__main__':
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     tijsterman_oligos = os.listdir(f'{config.forecast_path}')
+    training_data = pkl.load(open(f'{config.path}/training_data.pkl', 'rb'))
 
     dfs_container = []
     oligo_idx = 0
@@ -59,6 +105,7 @@ if __name__ == '__main__':
         pbar = tqdm(total=int(float(config.performance_samples)))
         while num_samples != int(float(config.performance_samples)):
             while not data_found:
+                cont = True
                 current_oligo = guideset['ID'][oligo_idx][5:]
                 oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
                 if oligo_name not in tijsterman_oligos:
@@ -77,29 +124,36 @@ if __name__ == '__main__':
             experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
             experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
 
-            predicted_distribution = predict_single_sample(current_oligo, guideset)
-            if predicted_distribution != 0:
-                predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
-                oligo_idx += 1
+            try:
+                predicted_distribution = predict_single_sample(current_oligo, guideset, data=training_data)
+            except KeyError:
                 data_found = False
-                num_samples += 1
-
-                KL_div = symmetricKL(experimental_distribution, predicted_distribution)
-                kl_divs[oligo_name] = KL_div
-                pbar.update(1)
-
-            else:
-                num_samples += 1
+                cont = False
                 oligo_idx += 1
-                data_found = False
+
+            if cont:
+                if predicted_distribution != 0:
+                    predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
+                    oligo_idx += 1
+                    data_found = False
+                    num_samples += 1
+
+                    KL_div = symmetricKL(experimental_distribution, predicted_distribution)
+                    kl_divs[oligo_name] = KL_div
+                    pbar.update(1)
+
+                else:
+                    oligo_idx += 1
+                    data_found = False
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs_N={config.performance_samples}_trained.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
-        with open(f'{config.path}/kl_divs_N={config.performance_samples}.pkl', 'rb') as f:
+        with open(f'{config.path}/kl_divs_N={config.performance_samples}_trained.pkl', 'rb') as f:
             kl_divs = pkl.load(f)
             kl_divs_list = list(kl_divs.values())
             mean_kl_div = np.mean(kl_divs_list)
             print(mean_kl_div)
+            generate_boxplot()
