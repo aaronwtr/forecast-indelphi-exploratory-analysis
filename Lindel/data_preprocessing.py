@@ -203,7 +203,8 @@ def get_train_data(guidedata, prereq):
         train_data = pd.read_pickle(f'{config.path}/training_data.pkl')
         return train_data
     else:
-        candidate_samples = fetch_candidate_samples()
+        # candidate_samples = fetch_candidate_samples()
+        candidate_samples = []
 
         tijsterman_oligos = config.tijsterman_oligos
         ground_truth_dict = {}
@@ -217,8 +218,11 @@ def get_train_data(guidedata, prereq):
 
         print('Collecting training data...')
 
-        pbar = tqdm(total=config.dataset_size)
-        while fetched_data < config.dataset_size:
+        data_getter = len(tijsterman_oligos)
+        data_count = 0
+        pbar = tqdm(total=data_getter)
+
+        while fetched_data < data_getter:
             cont = False
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
@@ -228,6 +232,8 @@ def get_train_data(guidedata, prereq):
                 seq = seq[nt_to_delete:]
                 if check_pam(seq):
                     cont = True
+                else:
+                    data_getter -= 1
 
             oligo_idx += 1
 
@@ -276,7 +282,7 @@ def get_test_data(guidedata, prereq, train_indels):
     else:
         candidate_samples = fetch_candidate_samples()
 
-        tijsterman_oligos = config.tijsterman_oligos
+        test_tijsterman_oligos = config.test_tijsterman_oligos
         ground_truth_dict = {}
 
         fetched_data = 0
@@ -288,17 +294,21 @@ def get_test_data(guidedata, prereq, train_indels):
 
         print('Collecting testing data...')
 
-        pbar = tqdm(total=len(candidate_samples))
-        while fetched_data < len(candidate_samples):
+        data_getter = len(test_tijsterman_oligos)
+
+        pbar = tqdm(total=data_getter)
+        while fetched_data < data_getter:
             cont = False
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
-            if int(current_oligo) in candidate_samples and f"Oligo_{current_oligo}" in tijsterman_oligos:
+            if f"Oligo_{current_oligo}" in test_tijsterman_oligos:
                 pam_idx = guidedata['PAM Index'][oligo_idx]
                 nt_to_delete = int(pam_idx) - 33
                 seq = seq[nt_to_delete:]
                 if check_pam(seq):
                     cont = True
+                else:
+                    data_getter -= 1
 
             oligo_idx += 1
 

@@ -1,7 +1,7 @@
 from model import LogisticRegression
 import torch
 import config
-from fetch_data import get_train_data, get_test_data
+from data_preprocessing import get_train_data, get_test_data
 import pandas as pd
 import pickle as pkl
 import Lindel
