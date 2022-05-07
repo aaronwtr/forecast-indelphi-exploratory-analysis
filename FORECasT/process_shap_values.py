@@ -28,11 +28,14 @@ def open_shap_data(path):
 
 def rank_features(x, feature_data):
     ranked_features_idx = np.argsort(np.mean(np.abs(x), axis=0))
-    ranked_features_idx = np.flip(ranked_features_idx[-20:])
+    ranked_features_idx = ranked_features_idx[-20:]
 
     feature_labels = np.array(feature_data.columns)[ranked_features_idx]
 
-    x = pd.DataFrame(x[:, ranked_features_idx], columns=feature_labels)
+    x_ranked = x[:, ranked_features_idx]
+    x_ranked = np.flip(np.sort(x_ranked, axis=0), axis=0)
+
+    x = pd.DataFrame(x_ranked, columns=feature_labels)
 
     return x, feature_labels
 
@@ -105,9 +108,11 @@ if __name__ == '__main__':
     robustness of the Shapley value method. 
     '''
 
-    base_path = f'FORECasT/shap_save_data/shapley_values/global_explanations/D3/n_1000/nsamples={config.nsamples}/'
+    base_path = f'FORECasT/shap_save_data/shapley_values/global_explanations/D17/n_1000/nsamples={config.nsamples}/'
     shap_values, features = open_shap_data(base_path)
-    shap_correlations_plot = False
+    shap_correlations_plot = True
+
+    # TODO 1 Sort the shapley values column-wise. It is best to NOT use a dataframe structure for this.
 
     if shap_correlations_plot:
         pccs = get_correlations(shap_values, features)
@@ -117,12 +122,12 @@ if __name__ == '__main__':
     Generating summary plots for a single Shapley value experiment.
     '''
 
-    summary_plot = True
+    summary_plot = False
     if summary_plot:
         for value_matrix in shap_values:
             shap.summary_plot(value_matrix, features)
 
-    # TODO 1 Add dot indicating the |mean| of the Shapley value for each feature.
+    # TODO 2 Add dot indicating the |mean| of the Shapley value for each feature.
 
-    # TODO 2 Consider incorporating Pearson correlation between each feature as a measure of the robustness of the Shapley
-    # TODO 2 value method.
+    # TODO 3 Consider incorporating Pearson correlation between each feature as a measure of the robustness of the Shapley
+    # TODO 3 value method.
