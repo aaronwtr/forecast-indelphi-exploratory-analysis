@@ -69,7 +69,7 @@ def generate_boxplot():
         kl_divs_lindel = pkl.load(f)
     f.close()
 
-    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_trained.pkl', 'rb') as f:
+    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1000_trained.pkl', 'rb') as f:
         kl_divs_lindel_trained = pkl.load(f)
     f.close()
 
@@ -83,7 +83,7 @@ def generate_boxplot():
     lindel_dict = {'Lindel': lindel_values}
 
     lindel_trained_values = [kl_divs_lindel_trained[x] for x in kl_divs_lindel_trained]
-    lindel_trained_dict = {'Lindel_trained': lindel_trained_values}
+    lindel_trained_dict = {'Lindel retrained': lindel_trained_values}
 
     df = pd.DataFrame(baseline_dict)
     df = df.append(pd.DataFrame(forecast_dict))
@@ -181,7 +181,7 @@ if __name__ == '__main__':
                 mean_kl_div = np.mean(kl_divs_list)
                 print(mean_kl_div)
         else:
-            with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_trained.pkl', 'rb') as f:
+            with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1000_trained.pkl', 'rb') as f:
                 kl_divs = pkl.load(f)
                 kl_divs_list = list(kl_divs.values())
                 mean_kl_div = np.mean(kl_divs_list)
