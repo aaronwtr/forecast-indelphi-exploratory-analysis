@@ -93,7 +93,7 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, 
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
-        weights = torch.load(open(f'{config.path}/model_params/model_params_387_epochs_0.001_weight_decay.pkl', 'rb'))
+        weights = torch.load(open(f'{config.path}/model_params/model_params_247_epochs_1e-05_weight_decay.pkl', 'rb'))
     else:
         weights = pre_trained_weights
 
@@ -154,11 +154,13 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, 
 
     else:
         cols = list(out_data.columns.values)
+        in_features = x.shape[1]
+        out_features = out_data.shape[1]
         x = x.loc[f'Oligo_{current_oligo}']
         x = x.values
         x = torch.tensor(x, dtype=torch.float)
 
-        model = LogisticRegression(x.shape[0], 4776)
+        model = LogisticRegression(in_features, out_features)
         model.load_state_dict(weights)
 
         y_hat = model(x).tolist()
@@ -177,12 +179,12 @@ if __name__ == '__main__':
     pre_trained_weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
-    training_data = pkl.load(open(f'{config.path}/training_data.pkl', 'rb'))
+    test_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
     # get row names of test data in list
-    oligos = list(training_data[0][:1000].index)
+    oligos = list(test_data[0][:100].index)
     oligos_idx = [int(x.split('_')[1]) for x in oligos]
 
     predicted_freqs = []
     for idx in tqdm(oligos_idx):
-        predicted_freqs.append(predict_single_sample(idx, guideset, data=training_data))
+        predicted_freqs.append(predict_single_sample(idx, guideset, data=test_data))
         # predicted_freqs is a list of dicts for the specified samples

@@ -85,7 +85,9 @@ if __name__ == '__main__':
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     tijsterman_oligos = os.listdir(f'{config.forecast_path}')
+    test_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
     training_data = pkl.load(open(f'{config.path}/training_data.pkl', 'rb'))
+
 
     dfs_container = []
     oligo_idx = 0
@@ -99,16 +101,30 @@ if __name__ == '__main__':
     num_samples = 0
 
     kl_divs = {}
-    analyze = True
+    analyze = False
+
+    test_tijsterman_oligos = config.tmp_test_tijsterman_oligos
+
+    fetched_data = 0
+    oligo_idx = 0
+    sample_names = []
+    feature_vectors = []
+
+    data_getter = len(test_tijsterman_oligos)
+    data_count = 0
 
     if not analyze:
         pbar = tqdm(total=int(float(config.performance_samples)))
-        while num_samples != int(float(config.performance_samples)):
+        while data_count < int(float(config.performance_samples)):
+            cont = False
+            data_count += 1
+            current_oligo = guideset['ID'][oligo_idx][5:]
+            seq = guideset['TargetSequence'][oligo_idx]
             while not data_found:
                 cont = True
                 current_oligo = guideset['ID'][oligo_idx][5:]
                 oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
-                if oligo_name not in tijsterman_oligos:
+                if oligo_name not in test_tijsterman_oligos:
                     oligo_idx += 1
                     continue
                 data_found = True
@@ -118,14 +134,14 @@ if __name__ == '__main__':
 
             target_seq = guideset['TargetSequence'][oligo_idx]
             pam_idx = guideset['PAM Index'][oligo_idx]
-            feature_data = pd.read_pickle(f"{config.forecast_path}/" + oligo_name)
+            feature_data = pd.read_pickle(f"{config.tmp_test_forecast_path}/" + oligo_name)
             experimental_distribution = feature_data['Frac Sample Reads']
 
             experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
             experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
 
             try:
-                predicted_distribution = predict_single_sample(current_oligo, guideset, data=training_data)
+                predicted_distribution = predict_single_sample(current_oligo, guideset, data=test_data)
             except KeyError:
                 data_found = False
                 cont = False
@@ -148,10 +164,10 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs_N={config.performance_samples}_trained.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs_N={data_count}_trained.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
-        with open(f'{config.path}/kl_divs_N={config.performance_samples}_trained.pkl', 'rb') as f:
+        with open(f'{config.path}/kl_divs_N={config.num_samples}_trained.pkl', 'rb') as f:
             kl_divs = pkl.load(f)
             kl_divs_list = list(kl_divs.values())
             mean_kl_div = np.mean(kl_divs_list)

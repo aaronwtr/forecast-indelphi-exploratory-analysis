@@ -206,7 +206,7 @@ def get_train_data(guidedata, prereq):
         # candidate_samples = fetch_candidate_samples()
         candidate_samples = []
 
-        tijsterman_oligos = config.tijsterman_oligos
+        tijsterman_oligos = config.tmp_tijsterman_oligos
         ground_truth_dict = {}
 
         fetched_data = 0
@@ -220,20 +220,19 @@ def get_train_data(guidedata, prereq):
 
         data_getter = len(tijsterman_oligos)
         data_count = 0
-        pbar = tqdm(total=data_getter)
 
-        while fetched_data < data_getter:
+        pbar = tqdm(total=data_getter)
+        while data_count < data_getter:
             cont = False
+            data_count +=1 
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
-            if int(current_oligo) not in candidate_samples and f"Oligo_{current_oligo}" in tijsterman_oligos:
+            if f"Oligo_{current_oligo}" in tijsterman_oligos:
                 pam_idx = guidedata['PAM Index'][oligo_idx]
                 nt_to_delete = int(pam_idx) - 33
                 seq = seq[nt_to_delete:]
                 if check_pam(seq):
                     cont = True
-                else:
-                    data_getter -= 1
 
             oligo_idx += 1
 
@@ -241,7 +240,7 @@ def get_train_data(guidedata, prereq):
                 sample_names.append(f'Oligo_{current_oligo}')
                 features_tmp, feature_labels = get_features(seq, mh_features)
 
-                exp_data = pd.read_pickle(f"{config.forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
+                exp_data = pd.read_pickle(f"{config.tmp_forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
                                           str(current_oligo))
 
                 ground_truth = exp_data['Frac Sample Reads']
@@ -280,9 +279,10 @@ def get_test_data(guidedata, prereq, train_indels):
         test_data = pd.read_pickle(f'{config.path}/test_data.pkl')
         return test_data
     else:
-        candidate_samples = fetch_candidate_samples()
+        # candidate_samples = fetch_candidate_samples()
+        candidate_samples = []
 
-        test_tijsterman_oligos = config.test_tijsterman_oligos
+        test_tijsterman_oligos = config.tmp_test_tijsterman_oligos
         ground_truth_dict = {}
 
         fetched_data = 0
@@ -294,11 +294,13 @@ def get_test_data(guidedata, prereq, train_indels):
 
         print('Collecting testing data...')
 
-        data_getter = len(test_tijsterman_oligos)
+        data_getter = len(test_tijsterman_oligos)        
+        data_count = 0
 
         pbar = tqdm(total=data_getter)
-        while fetched_data < data_getter:
+        while data_count < data_getter:
             cont = False
+            data_count += 1
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
             if f"Oligo_{current_oligo}" in test_tijsterman_oligos:
@@ -307,8 +309,6 @@ def get_test_data(guidedata, prereq, train_indels):
                 seq = seq[nt_to_delete:]
                 if check_pam(seq):
                     cont = True
-                else:
-                    data_getter -= 1
 
             oligo_idx += 1
 
@@ -316,7 +316,7 @@ def get_test_data(guidedata, prereq, train_indels):
                 sample_names.append(f'Oligo_{current_oligo}')
                 features_tmp, feature_labels = get_features(seq, mh_features)
 
-                exp_data = pd.read_pickle(f"{config.forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
+                exp_data = pd.read_pickle(f"{config.tmp_test_forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
                                           str(current_oligo))
 
                 ground_truth = exp_data['Frac Sample Reads']
@@ -350,7 +350,6 @@ def get_test_data(guidedata, prereq, train_indels):
         for i in range(indels_to_add):
             ground_truths[f'Indel_{i}'] = np.zeros(len(ground_truths))
 
-        print(ground_truths)
         return feature_matrix, ground_truths
 
 
