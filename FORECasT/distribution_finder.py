@@ -77,8 +77,8 @@ def select_candidate_samples():
 
         current_oligo = guideset['ID'][oligo_idx][5:]
         oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
-        oligo_path = f"{config.path}/train/Tijsterman_Analyser/" + oligo_name
-        candidate_path = f"{config.path}/candidate_samples/" + oligo_name
+        oligo_path = "E:/Aaron/Nanobiology/MSc/Year3/MEP/test/Tijsterman_Analyser/" + oligo_name
+        candidate_path = f"{config.path}/candidate_samples/test_data/" + oligo_name
 
         feature_data = pd.read_pickle(oligo_path)
         experimental_distribution = feature_data['Frac Sample Reads']
@@ -93,7 +93,7 @@ def select_candidate_samples():
 
         print(oligo_name)
 
-        if indel_strip[0] == 'I' and int(indel_strip[1:]) == 1 and first_freq >= 0.50:
+        if indel_strip[0] == 'I' and int(indel_strip[1:]) == 2:
             shutil.copyfile(oligo_path, candidate_path)
             num_samples += 1
             pbar.update(1)
@@ -105,13 +105,12 @@ def select_candidate_samples():
 
 if __name__ == '__main__':
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
-    tijsterman_oligos = os.listdir(f'{config.path}/train/Tijsterman_Analyser')
+    tijsterman_oligos = config.hd_test_tijsterman_oligos
     DEFAULT_MODEL = config.DEFAULT_MODEL
 
-    candidate_samples_large_del = os.listdir(f'{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/')
-    for sample in candidate_samples_large_del:
-        print(sample)
-        sample_path = f"{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/{sample}"
-        sample_data = pd.read_pickle(sample_path)
+    select_candidate_samples()
 
-        print(sample_data)
+    # candidate_samples_large_del = os.listdir(f'{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/')
+    # for sample in candidate_samples_large_del:
+    #     sample_path = f"{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/{sample}"
+    #     sample_data = pd.read_pickle(sample_path)

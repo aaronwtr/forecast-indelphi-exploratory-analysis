@@ -76,3 +76,5 @@ FORECasT/candidate_samples/train_data/single_nucleotide_insertions_freq_50\+/
 FORECasT/kl_divs/
 
 FORECasT/test/Tijsterman_Analyser/
+
+Lindel/train_1.py
