@@ -7,6 +7,7 @@ import os
 from tqdm import tqdm
 import numpy as np
 import plotly.express as px
+from plotly.offline import iplot
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fitter import Fitter
@@ -56,6 +57,34 @@ def predictionModel(input_data, pre_trained_model, target, pam, num_plot, plot=F
     return sorted_profile
 
 
+def check_pam(seq):
+    pam = ['AGG', 'TGG', 'CGG', 'GGG']
+
+    if seq[33:36] in pam:
+        return True
+    else:
+        return False
+
+
+def filter_centered_oligos():
+    oligos = config.hd_test_tijsterman_oligos
+    oligos_idx = [int(x.split('_')[1]) for x in oligos]
+    oligos = []
+    for curr_oligo in tqdm(oligos_idx):
+        for index, row in guideset.iterrows():
+            if int(curr_oligo) == index:
+                pam_id = row['PAM Index']
+                nt_to_delete = pam_id - 33  # We need to make sure the PAM is at the 33 idx
+                seq = row['TargetSequence'][nt_to_delete:]
+                if check_pam(seq):
+                    oligos.append("Oligo_" + str(curr_oligo))
+
+    with open(f'{config.path}/filtered_oligos.pkl', 'wb') as f:
+        pkl.dump(oligos, f)
+
+    return oligos
+
+
 def generate_boxplot():
     with open(f'{config.path}/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
         kl_divs_forecast = pkl.load(f)
@@ -100,25 +129,83 @@ def generate_boxplot():
     fig.show()
 
 
+def generate_forecast_boxplot():
+    with open(f'{config.path}/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
+        kl_divs_forecast = pkl.load(f)
+    f.close()
+
+    N_oligos = tijsterman_oligos[:int(float(config.performance_samples))]
+
+    not_centered = []
+    centered = []
+
+    for index, oligo in enumerate(N_oligos):
+        if oligo not in filtered_oligos:
+            not_centered.append(index)
+        else:
+            centered.append(index)
+
+    forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
+
+    centered_forecast_values = [forecast_values[x] for x in centered]
+    non_centered_forecast_values = [forecast_values[x] for x in not_centered]
+
+
+    centered_forecast_dict = {'FORECasT centered': centered_forecast_values}
+    non_centered_forecast_dict = {'FORECasT non-centered': non_centered_forecast_values}
+
+    df_centered = pd.DataFrame(centered_forecast_dict)
+
+    df_non_centered = pd.DataFrame(non_centered_forecast_dict)
+
+    df = pd.concat([df_centered, df_non_centered], axis=1)
+
+    fig = px.scatter(df, y=["FORECasT centered", "FORECasT non-centered"],
+                    title="Performance as measured by KL divergence on FORECasT data (N=1000)")
+
+    fig.update_layout(legend_title_text="Target sequence")
+
+    fig.update_yaxes(title_text="KL divergence")
+
+    fig.show()
+
+
 if __name__ == '__main__':
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     tijsterman_oligos = os.listdir(f'{config.path}/train/Tijsterman_Analyser')
     DEFAULT_MODEL = config.DEFAULT_MODEL
 
+    # check if filtered_oligos.pkl exists
+    if os.path.exists(f'{config.path}/filtered_oligos.pkl'):
+        with open(f'{config.path}/filtered_oligos.pkl', 'rb') as f:
+            filtered_oligos = pkl.load(f)
+    else:
+        filtered_oligos = filter_centered_oligos()
+
     oligo_idx = 0
 
     data_found = False
     num_samples = 0
 
+    tijsterman_oligos = config.hd_test_tijsterman_oligos
+
     kl_divs = {}
     analyze = True
     baseline = False
 
+    data_getter = len(tijsterman_oligos)
+    data_count = 0
+
     if not analyze:
         pbar = tqdm(total=int(float(config.performance_samples)))
-        while num_samples != int(float(config.performance_samples)):
+        while data_count < int(float(config.performance_samples)):
+            cont = False
+            data_count += 1
+            current_oligo = guideset['ID'][oligo_idx][5:]
+            seq = guideset['TargetSequence'][oligo_idx]
             while not data_found:
+                cont = True
                 current_oligo = guideset['ID'][oligo_idx][5:]
                 oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
                 if oligo_name not in tijsterman_oligos:
@@ -171,7 +258,7 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}_filtered.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
         if baseline:
@@ -187,4 +274,5 @@ if __name__ == '__main__':
                 mean_kl_div = np.mean(kl_divs_list)
                 print(mean_kl_div)
 
-        generate_boxplot()
+        # generate_boxplot()
+        generate_forecast_boxplot()
