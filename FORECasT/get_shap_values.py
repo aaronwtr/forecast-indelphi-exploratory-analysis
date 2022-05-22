@@ -163,7 +163,7 @@ def getExplanationData(guidedata, ioi):
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
     samples = pd.read_pickle(
-        f"{config.path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        f"{config.path}/candidate_samples/test_data/single_nucleotide_insertions_freq_50+/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
     )
 
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
@@ -175,12 +175,12 @@ def getExplanationData(guidedata, ioi):
     while oligo_data < config.dataset_size:
         current_oligo = guidedata['ID'][oligo_idx][5:]
         oligo_name = str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
-        if oligo_name not in config.tijsterman_oligos:
+        if oligo_name not in config.hd_test_tijsterman_oligos:
             oligo_idx += 1
             continue
 
         feature_data = pd.read_pickle(
-            f"{config.path}/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(
+            f"{config.hd_test_path}/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(
                 current_oligo)
         )
 
@@ -269,7 +269,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
         return shapley_val
 
     elif config.shap_type == 'local':
-        if num_files == config.num_files_to_obtain:
+        if num_files_0 == config.num_files_to_obtain:
             shapley_val, expected_val = pickle.load(
                 open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
@@ -314,6 +314,6 @@ if __name__ == '__main__':
         file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
         with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
                   'wb') as file:
-            pickle.dump((shap, expected_value), file)
+            pickle.dump((shap_values, expected_value), file)
         file.close()
         print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")

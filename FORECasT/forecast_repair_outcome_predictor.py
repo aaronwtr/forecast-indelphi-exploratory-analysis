@@ -142,14 +142,19 @@ class RepairOutcomeGenerator:
 
         for sample_type in sample_types:
             self.folder = sample_type
+            folder_contents = os.listdir(f"{config.candidate_samples}/{sample_type}")
+            if len(folder_contents) == 1:
+                continue
             oligo_idx = 0
             cont = False
             data_found = False
             num_plots = 0
-            candidate_samples = os.listdir(f'{config.candidate_samples}/{sample_type}')
+            print(f'{config.candidate_samples}/{sample_type}')
+            candidate_samples = os.listdir(f'{config.candidate_samples}/{self.folder}')
             while not data_found:
                 current_oligo = guideset['ID'][oligo_idx][5:]
                 oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+                # print(candidate_samples)
                 if oligo_name in candidate_samples:
                     cont = True
                 else:
@@ -161,7 +166,7 @@ class RepairOutcomeGenerator:
 
                     self.target_seq = guideset['TargetSequence'][oligo_idx]
                     self.pam_idx = guideset['PAM Index'][oligo_idx]
-                    feature_data = pd.read_pickle("FORECasT/train/Tijsterman_Analyser/" + oligo_name)
+                    feature_data = pd.read_pickle(f"{config.hd_test_path}/{oligo_name}")
 
                     self.model(feature_data)
                     num_plots += 1
@@ -176,7 +181,8 @@ if __name__ == '__main__':
     # Note that not all oligo's in the guideset are present in the Tijsterman data present locally.
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     guideset = pd.read_csv("FORECasT/guideset_data.txt", sep='\t')
-    tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
+    # tijsterman_oligos = os.listdir('FORECasT/train/Tijsterman_Analyser')
+    tijsterman_oligos = config.hd_test_tijsterman_oligos
     DEFAULT_MODEL = config.DEFAULT_MODEL
 
     ROG = RepairOutcomeGenerator()
