@@ -139,7 +139,6 @@ class RepairOutcomeGenerator:
 
     def get_candidate_repair_profiles(self):
         sample_types = os.listdir(config.candidate_samples)
-
         for sample_type in sample_types:
             self.folder = sample_type
             folder_contents = os.listdir(f"{config.candidate_samples}/{sample_type}")
