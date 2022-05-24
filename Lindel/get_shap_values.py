@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import shap.links
+from shap import Explainer
 import os
 import config
 import pickle as pkl
@@ -7,6 +9,7 @@ import Lindel
 import numpy as np
 import scipy.sparse as sparse
 from tqdm import tqdm
+from prediction import predict_all_samples as model
 
 '''
 In this script, the Lindel pre-trained model is implemented and SHAP analysis is consequently performed on top of this
@@ -141,15 +144,11 @@ def gen_prediction(seq, wb, prereq):
         return 'Error: No PAM sequence is identified.'
 
     w1, b1, w2, b2, w3, b3 = wb
-    print(len(w1))
     label, rev_index, features, frame_shift = prereq
     indels = gen_indel(seq, 30)
     input_indel = np.array(list(onehotencoder(guide).values()))
     input_ins = np.array(list(onehotencoder(guide[-6:]).values()))
     input_del = np.concatenate((create_mh_feature_array(features, indels), input_indel), axis=None)
-    print(type(input_del))
-    print(len(input_del))
-    print(len(input_ins))
 
     cmax = gen_cmatrix(indels, label)  # combine redundant classes
     dratio, insratio = softmax(np.dot(input_indel, w1) + b1)
@@ -219,6 +218,13 @@ def get_features(seq, features):
     return features, feature_labels
 
 
+def getBackgroundData(data):
+    background_data = pd.DataFrame(columns=data.columns)
+    background_data.loc[0, :] = np.zeros(len(data.columns))
+
+    return background_data
+
+
 def getExplanationData(guidedata, ioi, prereq):
     oligo_of_interest = int(ioi.split('_')[1])
 
@@ -272,6 +278,56 @@ def getExplanationData(guidedata, ioi, prereq):
     return explanation_data
 
 
+def getShapleyValues(model, background_data, explanation_data, explain_sample='global', link=shap.links.logit):
+    """
+    Compute the SHAP values for the explanation data. If no specific sample is specified, the SHAP values of the entire
+    explanation set are computed. If explain_sample is one, then automatically the first instance of the explanation set
+    is explained.
+
+    A copy of the Shapley values array is saved to shap_save_data/shapley_values. This is a tuple with index 0 being the
+    Shapley value array and index 1 being the expected value for the explanation set. This expected value is needed if
+    we want to generate local SHAP plots.
+    :return: Returns either a Shapley value matrix, or a tuple with the Shapley value matrix and the expected value.
+    """
+
+    explainer = Explainer(model, background_data, link=link)
+
+    if isinstance(config.nsamples, float):
+        nsamples = int(config.nsamples)
+    elif isinstance(config.nsamples, str) and config.nsamples != 'auto':
+        nsamples = int(float(config.nsamples))
+    elif config.nsamples == 'auto':
+        nsamples = config.nsamples
+    else:
+        assert isinstance(config.nsamples, int), "config.nsamples must be an int, a string or a float."
+        nsamples = config.nsamples
+
+    shap_save_path_0 = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
+    indel_name_0 = config.repair_outcome_of_interest.split('_')[2]
+    exact_save_location_0 = f'{indel_name_0}/n_{config.dataset_size}/nsamples={config.nsamples}'
+    num_files_0 = len(list(os.listdir(f'{shap_save_path_0}/{exact_save_location_0}')))
+    file_name_prefix_0 = f'{config.repair_outcome_of_interest}_{config.shap_type}_shap_values_'
+
+    if config.shap_type == 'global':
+        if num_files_0 == config.num_files_to_obtain:
+            shapley_val = pkl.load(
+                open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
+        else:
+            shapley_val = explainer.shap_values(explanation_data, npermutations=nsamples)
+
+        return shapley_val
+
+    elif config.shap_type == 'local':
+        if num_files_0 == config.num_files_to_obtain:
+            shapley_val, expected_val = pkl.load(
+                open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
+        else:
+            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], npermutations=nsamples)
+            expected_val = explainer.expected_value
+
+        return shapley_val, expected_val
+
+
 if __name__ == '__main__':
     weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
@@ -286,18 +342,33 @@ if __name__ == '__main__':
         explanation_df = getExplanationData(guideset, config.repair_outcome_of_interest, prerequesites)
         explanation_df.to_pickle(f'{explanation_dataset_path}/{explanation_dataset_name}')
 
-    print('Done!')
-    seq = 'GATCACAGGTCTATCACCCTATTAACCACTCACGGGAGCTCTCCATGCAT'
-    # filename = config.sample_of_interest.split('_')[0:2]
-    # filename = '_'.join(filename)
-    y_hat, fs = gen_prediction(seq, weights, prerequesites)
-    # filename += '_fs=' + str(round(fs, 3)) + '.txt'
-    # rev_index = prerequesites[1]
-    # pred_freq = {}
-    # for i in range(len(y_hat)):
-    #     if y_hat[i] != 0:
-    #         pred_freq[rev_index[i]] = y_hat[i]
-    # pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+    background_df = getBackgroundData(explanation_df)
+
+    shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
+    indel_name = config.repair_outcome_of_interest.split('_')[2]
+    exact_save_location = f'{indel_name}/n_{config.dataset_size}/nsamples={config.nsamples}'
+
+    if config.shap_type == 'global':
+        print("Getting Shapley values for all samples...")
+        shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
+        file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
+        with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
+            pkl.dump(shap_values, file)
+        file.close()
+        print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
+    else:
+        print("Getting Shapley values for one sample...")
+        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df,
+                                                       explain_sample=config.shap_type)
+        num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
+        file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
+        with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
+                  'wb') as file:
+            pkl.dump((shap_values, expected_value), file)
+        file.close()
+        print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
+
 
     # TODO 1 Wrap Lindel prediction model in a function that that takes in the explanation dataset and is able to compute
     # TODO 1 the output for the model.
