@@ -207,6 +207,11 @@ def get_train_data(guidedata, prereq):
         candidate_samples = []
 
         tijsterman_oligos = config.tmp_tijsterman_oligos
+        tijsterman_oligos_key = [int(x.split('_')[1]) for x in tijsterman_oligos]
+        tijsterman_oligos_dict = dict(zip(tijsterman_oligos_key, tijsterman_oligos))
+        tijsterman_oligos_dict = dict(sorted(tijsterman_oligos_dict.items()))
+        tijsterman_oligos = list(tijsterman_oligos_dict.values())
+
         ground_truth_dict = {}
 
         fetched_data = 0
@@ -221,12 +226,15 @@ def get_train_data(guidedata, prereq):
         data_getter = len(tijsterman_oligos)
         data_count = 0
 
+        last_oligo = tijsterman_oligos[-1]
+        last_oligo_idx = int(last_oligo[6:])
+        current_oligo = 0
         pbar = tqdm(total=data_getter)
-        while data_count < data_getter:
+        while int(current_oligo) < last_oligo_idx:
             cont = False
-            data_count +=1 
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
+            print('Oligo: ', current_oligo)
             if f"Oligo_{current_oligo}" in tijsterman_oligos:
                 pam_idx = guidedata['PAM Index'][oligo_idx]
                 nt_to_delete = int(pam_idx) - 33
@@ -257,6 +265,7 @@ def get_train_data(guidedata, prereq):
                 else:
                     feature_vectors = np.append(feature_vectors, features_tmp, axis=0)
                 pbar.update(1)
+                data_count += 1
                 fetched_data += 1
 
         pbar.close()
@@ -283,6 +292,11 @@ def get_test_data(guidedata, prereq, train_indels):
         candidate_samples = []
 
         test_tijsterman_oligos = config.tmp_test_tijsterman_oligos
+        tijsterman_oligos_key = [int(x.split('_')[1]) for x in test_tijsterman_oligos]
+        tijsterman_oligos_dict = dict(zip(tijsterman_oligos_key, test_tijsterman_oligos))
+        tijsterman_oligos_dict = dict(sorted(tijsterman_oligos_dict.items()))
+        tijsterman_oligos = list(tijsterman_oligos_dict.values())
+
         ground_truth_dict = {}
 
         fetched_data = 0
@@ -297,10 +311,12 @@ def get_test_data(guidedata, prereq, train_indels):
         data_getter = len(test_tijsterman_oligos)        
         data_count = 0
 
+        last_oligo = tijsterman_oligos[-1]
+        last_oligo_idx = int(last_oligo[6:])
+        current_oligo = 0
         pbar = tqdm(total=data_getter)
-        while data_count < data_getter:
+        while int(current_oligo) < last_oligo_idx:
             cont = False
-            data_count += 1
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
             if f"Oligo_{current_oligo}" in test_tijsterman_oligos:
@@ -333,6 +349,7 @@ def get_test_data(guidedata, prereq, train_indels):
                 else:
                     feature_vectors = np.append(feature_vectors, features_tmp, axis=0)
                 pbar.update(1)
+                data_count += 1
                 fetched_data += 1
 
         pbar.close()

@@ -1,14 +1,3 @@
-#!/usr/bin/env python 
-# Author: Will Chen
-"""
-1. All functions are tested under python3.5 and python 3.6
-2. Add Lindel folder to your python path.
-3. y_hat is the prediction of all ~450 classes of indels <30bp.
-4. fs is the frameshift ratio for this sequence.
-5. Input should be 65bp (30 bp upstream and 35 bp downstream of the cleavage site)
-usage: pyton Lindel_predction.py your_sequence_here your_file_name_here(can be gene name or guide name you designed)
-"""
-
 import pickle as pkl
 from tqdm import tqdm
 import pandas as pd
@@ -22,7 +11,7 @@ import torch
 from model import *
 
 
-def predict_all_samples(save=False, pretrained=False, **kwargs):
+def predict_all_samples_legacy(save=False, pretrained=False, **kwargs):
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
@@ -89,16 +78,17 @@ def predict_all_samples(save=False, pretrained=False, **kwargs):
     return
 
 
-def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, **kwargs):
+def predict_single_sample(current_oligo, guideset, save=False, pretrained=False, **kwargs):
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
-        weights = torch.load(open(f'{config.path}/model_params/model_params_247_epochs_1e-05_weight_decay.pkl', 'rb'))
+        weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
     else:
         weights = pre_trained_weights
 
     for index, row in guideset.iterrows():
         if int(current_oligo) == index:
+            oligo_name = row['ID'][5:]
             pam_idx = row['PAM Index']
             nt_to_delete = pam_idx - 33  # We need to make sure the PAM is at the 33 idx
             seq = row['TargetSequence'][nt_to_delete:]
@@ -107,7 +97,7 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, 
             else:
                 return 0
 
-    filename = f'Oligo_{current_oligo}'
+    filename = f'Oligo_{oligo_name}'
 
     if pretrained:
         y_hat, fs = gen_prediction(seq, weights, prerequesites)
@@ -119,8 +109,9 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, 
             if y_hat[i] != 0:
                 pred_freq[rev_index[i]] = y_hat[i]
         pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-
+        print(pred_sorted)
         write_file(seq, pred_sorted, pred_freq, filename)
+        print(filename)
         path_to_file = f'repair_outcomes/cache/{filename}'
         current_repair_outcome = open_file(path_to_file)
 
@@ -170,7 +161,41 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=True, 
         for i in range(len(y_hat)):
             pred_freq[cols[i]] = y_hat[i]
 
-        pred_sorted = dict(sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True))
+        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+
+        write_file(seq, pred_sorted, pred_freq, filename)
+        # TODO Use FORECasT to plot results rather than write_file
+
+        path_to_file = f'repair_outcomes/cache/{filename}'
+        current_repair_outcome = open_file(path_to_file)
+
+        column_names = ['Target sequence outcome', 'Integration frequency', 'Indel label']
+        current_repair_outcome.columns = column_names
+        indel_names = list(current_repair_outcome['Indel label'])
+        int_freqs = list(current_repair_outcome['Integration frequency'])
+
+        indel_names = [x.split('+')[0] for x in indel_names]
+        indel_names = [x.split('  ')[0] for x in indel_names]
+
+        indels_done = []
+        for indel in indel_names:
+            count = 0
+            if indel not in indels_done:
+                count += 1
+                for i in range(len(indel_names)):
+                    if indel_names[i] == indel:
+                        indel_names[i] = indel + '_' + str(count)
+                        indel_names[i] = indel_names[i].split('_')[0] + '_' + indel_names[i].split('_')[1]
+                        count += 1
+            indels_done.append(indel)
+
+        pred_freq = {}
+        for i in range(len(int_freqs)):
+            if int_freqs[i] != 0:
+                pred_freq[indel_names[i]] = int_freqs[i] / 100
+        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+
+        pred_sorted = {k: v for k, v in pred_sorted}
 
     return pred_sorted
 
@@ -180,11 +205,15 @@ if __name__ == '__main__':
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     test_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
-    # get row names of test data in list
-    oligos = list(test_data[0][:100].index)
-    oligos_idx = [int(x.split('_')[1]) for x in oligos]
 
-    predicted_freqs = []
-    for idx in tqdm(oligos_idx):
-        predicted_freqs.append(predict_single_sample(idx, guideset, data=test_data))
-        # predicted_freqs is a list of dicts for the specified samples
+    oligo_tmp = test_data[0]
+    oligo_row = oligo_tmp.loc['Oligo_4698']
+
+    oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
+    # oligo_4698 = predict_single_sample(2664, guideset, pretrained=True)
+    print(oligo_4698)
+
+    # predicted_freqs = []
+    # for idx in tqdm(oligos_idx):
+    #     predicted_freqs.append(predict_single_sample(idx, guideset, data=test_data))
+    #     # predicted_freqs is a list of dicts for the specified samples
