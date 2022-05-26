@@ -1,4 +1,6 @@
 import torch
+import pandas as pd
+import numpy as np
 
 
 class LogisticRegression(torch.nn.Module):
@@ -12,5 +14,10 @@ class LogisticRegression(torch.nn.Module):
         self.linear.bias.data.zero_()
 
     def forward(self, x):
-        logit = self.linear(x)  # Since we are applying nn.CrossEntropyLoss, we don't need to apply softmax here
+        if isinstance(x, pd.DataFrame):
+            x = x.values
+            x = x.astype(np.float64)
+            x = torch.tensor(x, dtype=torch.float64)
+
+        logit = self.linear(x.float())  # Since we are applying nn.CrossEntropyLoss, we don't need to apply softmax here
         return logit

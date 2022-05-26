@@ -18,7 +18,7 @@ def predict_all_samples(data):
     centered around the PAM again.
     """
     _, out_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
-    weights = torch.load(open(f'{config.path}/model_params/model_params_247_epochs_1e-05_weight_decay.pkl', 'rb'))
+    weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
     pred_freq = {}
 
     for i in tqdm(range(data.shape[0])):

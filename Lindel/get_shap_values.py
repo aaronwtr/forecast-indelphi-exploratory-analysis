@@ -1,15 +1,18 @@
 import pandas as pd
 import numpy as np
 import shap.links
-from shap import Explainer
+from shap import GradientExplainer
+# from shap import KernelExplainer
 import os
 import config
 import pickle as pkl
-import Lindel
 import numpy as np
 import scipy.sparse as sparse
 from tqdm import tqdm
-from prediction import predict_all_samples as model
+import torch
+
+from model import LogisticRegression
+import Lindel
 
 '''
 In this script, the Lindel pre-trained model is implemented and SHAP analysis is consequently performed on top of this
@@ -290,7 +293,8 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
     :return: Returns either a Shapley value matrix, or a tuple with the Shapley value matrix and the expected value.
     """
 
-    explainer = Explainer(model, background_data, link=link)
+    # explainer = KernelExplainer(model, background_data, link='logit')
+    explainer = GradientExplainer(model, background_data)
 
     if isinstance(config.nsamples, float):
         nsamples = int(config.nsamples)
@@ -313,7 +317,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
             shapley_val = pkl.load(
                 open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data, npermutations=nsamples)
+            shapley_val = explainer.shap_values(explanation_data, nsamples=200)
 
         return shapley_val
 
@@ -322,14 +326,15 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
             shapley_val, expected_val = pkl.load(
                 open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], npermutations=nsamples)
+            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=500)
             expected_val = explainer.expected_value
 
         return shapley_val, expected_val
 
 
 if __name__ == '__main__':
-    weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
+    # weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
+    weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
 
@@ -343,6 +348,21 @@ if __name__ == '__main__':
         explanation_df.to_pickle(f'{explanation_dataset_path}/{explanation_dataset_name}')
 
     background_df = getBackgroundData(explanation_df)
+    background_df = background_df.values
+    background_df = np.float64(background_df)
+    background_df = torch.tensor(background_df, dtype=torch.float64)
+
+    explanation_df = explanation_df.values
+    explanation_df = np.float64(explanation_df)
+    explanation_df = torch.tensor(explanation_df, dtype=torch.float64)
+
+    _, out_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
+
+    in_features = explanation_df.shape[1]
+    out_features = out_data.shape[1]
+
+    model = LogisticRegression(in_features, out_features)
+    model.load_state_dict(weights)
 
     shap_save_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations'
     indel_name = config.repair_outcome_of_interest.split('_')[2]
