@@ -1,14 +1,19 @@
 import pickle as pkl
 from tqdm import tqdm
 import pandas as pd
+import matplotlib.pyplot as plt
+import random
+import subprocess
+import torch
+import os
 
 import Lindel
 import config
-import os
 from Lindel.Predictor import *
 from get_shap_values import check_pam
-import torch
 from model import *
+from predictor.predict import INDELGENTARGET_EXE, fetchRepReads
+from selftarget.view import plotProfiles
 
 
 def predict_all_samples_legacy(save=False, pretrained=False, **kwargs):
@@ -78,6 +83,25 @@ def predict_all_samples_legacy(save=False, pretrained=False, **kwargs):
     return
 
 
+def profilePlotter(profile, rep_reads, pam, oligo_idx, plot=True):
+    profile_freqs = list(profile.values())
+    profile_freqs.sort(reverse=True)
+
+    if plot:
+        pp = plotProfiles([profile], [rep_reads], [pam], [False], ['Predicted'], oligo_idx,
+                          title='Oligo ' + str(oligo_idx))
+        if pp == 0:
+            return 0
+
+        plt.savefig(f"repair_outcomes/candidate_repair_outcomes/deletions/'Oligo_{oligo_idx}_{config.repair_outcome_of_interest}.pdf")
+        plt.close()
+        plot = False
+
+        return 1
+
+    return 0
+
+
 def predict_single_sample(current_oligo, guideset, save=False, pretrained=False, **kwargs):
     if 'data' in kwargs:
         x, out_data = kwargs['data']
@@ -109,9 +133,7 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
             if y_hat[i] != 0:
                 pred_freq[rev_index[i]] = y_hat[i]
         pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-        print(pred_sorted)
         write_file(seq, pred_sorted, pred_freq, filename)
-        print(filename)
         path_to_file = f'repair_outcomes/cache/{filename}'
         current_repair_outcome = open_file(path_to_file)
 
@@ -163,39 +185,15 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
 
         pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
 
-        write_file(seq, pred_sorted, pred_freq, filename)
-        # TODO Use FORECasT to plot results rather than write_file
-
-        path_to_file = f'repair_outcomes/cache/{filename}'
-        current_repair_outcome = open_file(path_to_file)
-
-        column_names = ['Target sequence outcome', 'Integration frequency', 'Indel label']
-        current_repair_outcome.columns = column_names
-        indel_names = list(current_repair_outcome['Indel label'])
-        int_freqs = list(current_repair_outcome['Integration frequency'])
-
-        indel_names = [x.split('+')[0] for x in indel_names]
-        indel_names = [x.split('  ')[0] for x in indel_names]
-
-        indels_done = []
-        for indel in indel_names:
-            count = 0
-            if indel not in indels_done:
-                count += 1
-                for i in range(len(indel_names)):
-                    if indel_names[i] == indel:
-                        indel_names[i] = indel + '_' + str(count)
-                        indel_names[i] = indel_names[i].split('_')[0] + '_' + indel_names[i].split('_')[1]
-                        count += 1
-            indels_done.append(indel)
-
-        pred_freq = {}
-        for i in range(len(int_freqs)):
-            if int_freqs[i] != 0:
-                pred_freq[indel_names[i]] = int_freqs[i] / 100
-        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-
         pred_sorted = {k: v for k, v in pred_sorted}
+
+        # tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (seq, random.randint(0, 100000))
+        # cmd = INDELGENTARGET_EXE + ' %s %d %s' % (seq, pam_idx, tmp_genindels_file)
+        #
+        # subprocess.check_call(cmd.split())
+        # rep_reads = fetchRepReads(tmp_genindels_file)
+        #
+        # profilePlotter(pred_sorted, rep_reads, pam_idx, oligo_name)
 
     return pred_sorted
 
