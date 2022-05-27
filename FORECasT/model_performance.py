@@ -1,16 +1,19 @@
+import pandas
 import pandas as pd
 import pickle as pkl
 import config
-from forecast_repair_outcome_predictor import predictMutations
 from warnings import simplefilter
 import os
 from tqdm import tqdm
 import numpy as np
 import plotly.express as px
+import random
 from plotly.offline import iplot
 import matplotlib.pyplot as plt
 import seaborn as sns
 from fitter import Fitter
+
+from forecast_repair_outcome_predictor import predictMutations
 
 
 def KL(p1, p2, ignore_null=True, missing_count=0.5):
@@ -85,18 +88,29 @@ def filter_centered_oligos():
     return oligos
 
 
+def generate_random_subset_kl_divs(count):
+    with open(f'{config.path}/kl_divs/centered_forecast_kl_values.pkl', 'rb') as f:
+        kl_divs = pkl.load(f)
+        random_oligos = random.sample(kl_divs, 1000)
+
+        with open(f'{config.path}/kl_divs/random_filtered_kl_divs/random_subset_N=1000_{count + 1}_forecast.pkl', 'wb') as f:
+            pkl.dump(random_oligos, f)
+
+    return
+
+
 def generate_boxplot():
     with open(f'{config.path}/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
         kl_divs_forecast = pkl.load(f)
     f.close()
 
-    with open(f'{config.path}/kl_divs/kl_divs_baseline_N=1e03.pkl', 'rb') as f:
-        kl_divs_baseline = pkl.load(f)
-    f.close()
+    # with open(f'{config.path}/kl_divs/kl_divs_baseline_N=1e03.pkl', 'rb') as f:
+    #     kl_divs_baseline = pkl.load(f)
+    # f.close()
 
-    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_1.pkl', 'rb') as f:
-        kl_divs_lindel = pkl.load(f)
-    f.close()
+    # with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1e03_1.pkl', 'rb') as f:
+    #     kl_divs_lindel = pkl.load(f)
+    # f.close()
 
     with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1000_trained.pkl', 'rb') as f:
         kl_divs_lindel_trained = pkl.load(f)
@@ -105,18 +119,18 @@ def generate_boxplot():
     forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
     forecast_dict = {'FORECasT': forecast_values}
 
-    baseline_values = [kl_divs_baseline[x] for x in kl_divs_baseline]
-    baseline_dict = {'Baseline': baseline_values}
-
-    lindel_values = [kl_divs_lindel[x] for x in kl_divs_lindel]
-    lindel_dict = {'Lindel': lindel_values}
+    # baseline_values = [kl_divs_baseline[x] for x in kl_divs_baseline]
+    # baseline_dict = {'Baseline': baseline_values}
+    #
+    # lindel_values = [kl_divs_lindel[x] for x in kl_divs_lindel]
+    # lindel_dict = {'Lindel': lindel_values}
 
     lindel_trained_values = [kl_divs_lindel_trained[x] for x in kl_divs_lindel_trained]
     lindel_trained_dict = {'Lindel retrained': lindel_trained_values}
 
-    df = pd.DataFrame(baseline_dict)
-    df = df.append(pd.DataFrame(forecast_dict))
-    df = df.append(pd.DataFrame(lindel_dict))
+    df = pd.DataFrame(forecast_dict)
+    # df = df.append(pd.DataFrame(baseline_dict))
+    # df = df.append(pd.DataFrame(lindel_dict))
     df = df.append(pd.DataFrame(lindel_trained_dict))
     df = df.melt(var_name='Model')
 
@@ -134,7 +148,7 @@ def generate_forecast_boxplot():
         kl_divs_forecast = pkl.load(f)
     f.close()
 
-    N_oligos = tijsterman_oligos[:int(float(config.performance_samples))]
+    N_oligos = tijsterman_oligos
 
     not_centered = []
     centered = []
@@ -150,6 +164,10 @@ def generate_forecast_boxplot():
     centered_forecast_values = [forecast_values[x] for x in centered]
     non_centered_forecast_values = [forecast_values[x] for x in not_centered]
 
+    # save centered forecast values to pkl file
+    with open(f'{config.path}/kl_divs/centered_forecast_kl_values.pkl', 'wb') as f:
+        pkl.dump(centered_forecast_values, f)
+    f.close()
 
     centered_forecast_dict = {'FORECasT centered': centered_forecast_values}
     non_centered_forecast_dict = {'FORECasT non-centered': non_centered_forecast_values}
@@ -191,34 +209,38 @@ if __name__ == '__main__':
     tijsterman_oligos = config.hd_test_tijsterman_oligos
 
     kl_divs = {}
-    analyze = True
+    analyze = False
     baseline = False
 
     data_getter = len(tijsterman_oligos)
     data_count = 0
+    current_oligo = 0
+
+    # for i in range(10):
+    #     generate_random_subset_kl_divs(i)
 
     if not analyze:
-        pbar = tqdm(total=int(float(config.performance_samples)))
-        while data_count < int(float(config.performance_samples)):
+        pbar = tqdm(total=len(tijsterman_oligos))
+        while data_count < len(tijsterman_oligos):
             cont = False
             data_count += 1
-            current_oligo = guideset['ID'][oligo_idx][5:]
-            seq = guideset['TargetSequence'][oligo_idx]
             while not data_found:
                 cont = True
                 current_oligo = guideset['ID'][oligo_idx][5:]
+                seq = guideset['TargetSequence'][oligo_idx]
                 oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
                 if oligo_name not in tijsterman_oligos:
                     oligo_idx += 1
                     continue
                 data_found = True
 
+                print(oligo_name)
             current_oligo = guideset['ID'][oligo_idx][5:]
             oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
 
             target_seq = guideset['TargetSequence'][oligo_idx]
             pam_idx = guideset['PAM Index'][oligo_idx]
-            feature_data = pd.read_pickle(f"{config.path}/train/Tijsterman_Analyser/" + oligo_name)
+            feature_data = pd.read_pickle(f"{config.hd_test_path}/" + oligo_name)
             experimental_distribution = feature_data['Frac Sample Reads']
             experimental_distribution = dict(zip(feature_data['Indel'], experimental_distribution))
             experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
@@ -258,7 +280,7 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs/kl_divs_N={config.performance_samples}_filtered.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_forecast.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
         if baseline:
@@ -266,7 +288,7 @@ if __name__ == '__main__':
                 kl_divs = pkl.load(f)
                 kl_divs_list = list(kl_divs.values())
                 mean_kl_div = np.mean(kl_divs_list)
-                print(mean_kl_div)
+                # print(mean_kl_div)
         else:
             with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1000_trained.pkl', 'rb') as f:
                 kl_divs = pkl.load(f)
@@ -275,4 +297,4 @@ if __name__ == '__main__':
                 print(mean_kl_div)
 
         # generate_boxplot()
-        generate_forecast_boxplot()
+        # generate_forecast_boxplot() # plotting centered vs non centered distribution
