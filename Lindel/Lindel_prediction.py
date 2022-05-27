@@ -110,8 +110,10 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
     else:
         weights = pre_trained_weights
 
+    cont = False
     for index, row in guideset.iterrows():
         if int(current_oligo) == index:
+            cont = True
             oligo_name = row['ID'][5:]
             pam_idx = row['PAM Index']
             nt_to_delete = pam_idx - 33  # We need to make sure the PAM is at the 33 idx
@@ -121,81 +123,81 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
             else:
                 return 0
 
-    filename = f'Oligo_{oligo_name}'
+    if cont:
+        filename = f'Oligo_{oligo_name}'
+        if pretrained:
+            y_hat, fs = gen_prediction(seq, weights, prerequesites)
+            filename += '_fs=' + str(round(fs, 3)) + '.txt'
 
-    if pretrained:
-        y_hat, fs = gen_prediction(seq, weights, prerequesites)
-        filename += '_fs=' + str(round(fs, 3)) + '.txt'
+            rev_index = prerequesites[1]
+            pred_freq = {}
+            for i in range(len(y_hat)):
+                if y_hat[i] != 0:
+                    pred_freq[rev_index[i]] = y_hat[i]
+            pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+            write_file(seq, pred_sorted, pred_freq, filename)
+            path_to_file = f'repair_outcomes/cache/{filename}'
+            current_repair_outcome = open_file(path_to_file)
 
-        rev_index = prerequesites[1]
-        pred_freq = {}
-        for i in range(len(y_hat)):
-            if y_hat[i] != 0:
-                pred_freq[rev_index[i]] = y_hat[i]
-        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-        write_file(seq, pred_sorted, pred_freq, filename)
-        path_to_file = f'repair_outcomes/cache/{filename}'
-        current_repair_outcome = open_file(path_to_file)
+            column_names = ['Target sequence outcome', 'Integration frequency', 'Indel label']
+            current_repair_outcome.columns = column_names
+            indel_names = list(current_repair_outcome['Indel label'])
+            int_freqs = list(current_repair_outcome['Integration frequency'])
 
-        column_names = ['Target sequence outcome', 'Integration frequency', 'Indel label']
-        current_repair_outcome.columns = column_names
-        indel_names = list(current_repair_outcome['Indel label'])
-        int_freqs = list(current_repair_outcome['Integration frequency'])
+            indel_names = [x.split('+')[0] for x in indel_names]
+            indel_names = [x.split('  ')[0] for x in indel_names]
 
-        indel_names = [x.split('+')[0] for x in indel_names]
-        indel_names = [x.split('  ')[0] for x in indel_names]
+            indels_done = []
+            for indel in indel_names:
+                count = 0
+                if indel not in indels_done:
+                    count += 1
+                    for i in range(len(indel_names)):
+                        if indel_names[i] == indel:
+                            indel_names[i] = indel + '_' + str(count)
+                            indel_names[i] = indel_names[i].split('_')[0] + '_' + indel_names[i].split('_')[1]
+                            count += 1
+                indels_done.append(indel)
 
-        indels_done = []
-        for indel in indel_names:
-            count = 0
-            if indel not in indels_done:
-                count += 1
-                for i in range(len(indel_names)):
-                    if indel_names[i] == indel:
-                        indel_names[i] = indel + '_' + str(count)
-                        indel_names[i] = indel_names[i].split('_')[0] + '_' + indel_names[i].split('_')[1]
-                        count += 1
-            indels_done.append(indel)
+            pred_freq = {}
+            for i in range(len(int_freqs)):
+                if int_freqs[i] != 0:
+                    pred_freq[indel_names[i]] = int_freqs[i] / 100
+            pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
 
-        pred_freq = {}
-        for i in range(len(int_freqs)):
-            if int_freqs[i] != 0:
-                pred_freq[indel_names[i]] = int_freqs[i] / 100
-        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+            pred_sorted = {k: v for k, v in pred_sorted}
 
-        pred_sorted = {k: v for k, v in pred_sorted}
+        else:
+            cols = list(out_data.columns.values)
+            in_features = x.shape[1]
+            out_features = out_data.shape[1]
+            x = x.loc[f'Oligo_{current_oligo}']
+            x = x.values
+            x = torch.tensor(x, dtype=torch.float)
 
-    else:
-        cols = list(out_data.columns.values)
-        in_features = x.shape[1]
-        out_features = out_data.shape[1]
-        x = x.loc[f'Oligo_{current_oligo}']
-        x = x.values
-        x = torch.tensor(x, dtype=torch.float)
+            model = LogisticRegression(in_features, out_features)
+            model.load_state_dict(weights)
 
-        model = LogisticRegression(in_features, out_features)
-        model.load_state_dict(weights)
+            y_hat = model(x).tolist()
+            y_hat = softmax(y_hat)
 
-        y_hat = model(x).tolist()
-        y_hat = softmax(y_hat)
+            pred_freq = {}
+            for i in range(len(y_hat)):
+                pred_freq[cols[i]] = y_hat[i]
 
-        pred_freq = {}
-        for i in range(len(y_hat)):
-            pred_freq[cols[i]] = y_hat[i]
+            pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
 
-        pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
+            pred_sorted = {k: v for k, v in pred_sorted}
 
-        pred_sorted = {k: v for k, v in pred_sorted}
+            # tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (seq, random.randint(0, 100000))
+            # cmd = INDELGENTARGET_EXE + ' %s %d %s' % (seq, pam_idx, tmp_genindels_file)
+            #
+            # subprocess.check_call(cmd.split())
+            # rep_reads = fetchRepReads(tmp_genindels_file)
+            #
+            # profilePlotter(pred_sorted, rep_reads, pam_idx, oligo_name)
 
-        # tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (seq, random.randint(0, 100000))
-        # cmd = INDELGENTARGET_EXE + ' %s %d %s' % (seq, pam_idx, tmp_genindels_file)
-        #
-        # subprocess.check_call(cmd.split())
-        # rep_reads = fetchRepReads(tmp_genindels_file)
-        #
-        # profilePlotter(pred_sorted, rep_reads, pam_idx, oligo_name)
-
-    return pred_sorted
+        return pred_sorted
 
 
 if __name__ == '__main__':
