@@ -114,8 +114,8 @@ if __name__ == '__main__':
     data_count = 0
 
     if not analyze:
-        pbar = tqdm(total=int(float(config.performance_samples)))
-        while data_count < int(float(config.performance_samples)):
+        pbar = tqdm(total=len(test_tijsterman_oligos))
+        while data_count < len(test_tijsterman_oligos):
             cont = False
             data_count += 1
             current_oligo = guideset['ID'][oligo_idx][5:]
@@ -167,7 +167,7 @@ if __name__ == '__main__':
         with open(f'{config.path}/kl_divs_N={data_count}_trained.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
-        with open(f'{config.path}/kl_divs_N={config.num_samples}_trained.pkl', 'rb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_lindel.pkl', 'rb') as f:
             kl_divs = pkl.load(f)
             kl_divs_list = list(kl_divs.values())
             mean_kl_div = np.mean(kl_divs_list)
