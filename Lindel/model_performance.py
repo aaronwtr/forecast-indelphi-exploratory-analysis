@@ -141,14 +141,14 @@ if __name__ == '__main__':
             experimental_distribution = dict(sorted(experimental_distribution.items(), key=lambda x: x[0]))
 
             try:
-                predicted_distribution = predict_single_sample(current_oligo, guideset, data=test_data)
+                predicted_distribution = predict_single_sample(oligo_idx, guideset, data=test_data)
             except KeyError:
                 data_found = False
                 cont = False
                 oligo_idx += 1
 
             if cont:
-                if predicted_distribution != 0:
+                if predicted_distribution != 0 and predicted_distribution is not None:
                     predicted_distribution = dict(sorted(predicted_distribution.items(), key=lambda x: x[0]))
                     oligo_idx += 1
                     data_found = False
@@ -162,9 +162,9 @@ if __name__ == '__main__':
                     oligo_idx += 1
                     data_found = False
 
-        pbar.close()
+        # pbar.close()
 
-        with open(f'{config.path}/kl_divs_N={data_count}_trained.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_N={data_count}_trained.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
         with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_lindel.pkl', 'rb') as f:

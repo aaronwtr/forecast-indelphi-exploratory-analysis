@@ -102,7 +102,7 @@ def profilePlotter(profile, rep_reads, pam, oligo_idx, plot=True):
     return 0
 
 
-def predict_single_sample(current_oligo, guideset, save=False, pretrained=False, **kwargs):
+def predict_single_sample(oligo_idx, guideset, save=False, pretrained=False, **kwargs):
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
@@ -112,7 +112,7 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
 
     cont = False
     for index, row in guideset.iterrows():
-        if int(current_oligo) == index:
+        if int(oligo_idx) == index:
             cont = True
             oligo_name = row['ID'][5:]
             pam_idx = row['PAM Index']
@@ -168,10 +168,12 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
             pred_sorted = {k: v for k, v in pred_sorted}
 
         else:
+            print(oligo_idx)
             cols = list(out_data.columns.values)
             in_features = x.shape[1]
             out_features = out_data.shape[1]
-            x = x.loc[f'Oligo_{current_oligo}']
+
+            x = x.loc[f'Oligo_{oligo_name}']
             x = x.values
             x = torch.tensor(x, dtype=torch.float)
 
@@ -186,7 +188,6 @@ def predict_single_sample(current_oligo, guideset, save=False, pretrained=False,
                 pred_freq[cols[i]] = y_hat[i]
 
             pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-
             pred_sorted = {k: v for k, v in pred_sorted}
 
             # tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (seq, random.randint(0, 100000))
