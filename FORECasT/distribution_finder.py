@@ -56,7 +56,7 @@ def generating_average_distribution():
         pkl.dump(freqs_dict, f)
 
 
-def select_candidate_samples():
+def select_candidate_samples(filtered_samples):
     oligo_idx = 0
 
     data_found = False
@@ -64,9 +64,9 @@ def select_candidate_samples():
 
     experimental_distribution_dict = {}
 
-    pbar = tqdm(total=int(float(config.performance_samples)))
+    pbar = tqdm(total=len(tijsterman_oligos))
     count = 0
-    while num_samples != int(float(config.performance_samples)):
+    while num_samples != len(tijsterman_oligos):
         while not data_found:
             current_oligo = guideset['ID'][oligo_idx][5:]
             oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -75,10 +75,16 @@ def select_candidate_samples():
                 continue
             data_found = True
 
+        threshold = 0.1
+
         current_oligo = guideset['ID'][oligo_idx][5:]
         oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
         oligo_path = "E:/Aaron/Nanobiology/MSc/Year3/MEP/test/Tijsterman_Analyser/" + oligo_name
-        candidate_path = f"{config.path}/candidate_samples/test_data/" + oligo_name
+        # candidate_path = f"{config.path}/candidate_samples/test_data/large_deletions_freq_{int(threshold * 100)}+/" + \
+        #                 oligo_name
+
+        candidate_path = f"E:/Aaron/Nanobiology/MSc/Year3/MEP/candidate_samples/test_data/single_nucleotide_insertions"\
+                f"_freq_{int(threshold * 100)}+/" + oligo_name
 
         feature_data = pd.read_pickle(oligo_path)
         experimental_distribution = feature_data['Frac Sample Reads']
@@ -90,13 +96,11 @@ def select_candidate_samples():
         first_freq = experimental_distribution[list(experimental_distribution.keys())[0]]
 
         indel_strip = indels[0].split('_')[0]
-
-        print(oligo_name)
-
-        if indel_strip[0] == 'I' and int(indel_strip[1:]) == 2:
+        pbar.update(1)
+        if oligo_name in filtered_samples and indel_strip[0] == 'I' and int(indel_strip[1:]) == 1 and first_freq >= \
+                threshold:
             shutil.copyfile(oligo_path, candidate_path)
             num_samples += 1
-            pbar.update(1)
 
         oligo_idx += 1
         count += 1
@@ -107,8 +111,11 @@ if __name__ == '__main__':
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     tijsterman_oligos = config.hd_test_tijsterman_oligos
     DEFAULT_MODEL = config.DEFAULT_MODEL
+    # open filtered_oligos.pkl
+    with open(f"{config.path}/filtered_oligos.pkl", 'rb') as f:
+        filtered_oligos = pkl.load(f)
 
-    select_candidate_samples()
+    select_candidate_samples(filtered_oligos)
 
     # candidate_samples_large_del = os.listdir(f'{config.path}/candidate_samples/single_nucleotide_insertions_freq_50+/')
     # for sample in candidate_samples_large_del:
