@@ -88,19 +88,27 @@ def filter_centered_oligos():
     return oligos
 
 
-def generate_random_subset_kl_divs(count):
-    with open(f'{config.path}/kl_divs/centered_forecast_kl_values.pkl', 'rb') as f:
-        kl_divs = pkl.load(f)
-        random_oligos = random.sample(kl_divs, 1000)
+def generate_random_subset_kl_divs(count, filtered_samples):
+    """
+    This function first retrieves only the centered samples from all samples and then generates a random subset of length
+    1000 to evaluate the model performance fairly with the Lindel model.
+    """
 
-        with open(f'{config.path}/kl_divs/random_filtered_kl_divs/random_subset_N=1000_{count + 1}_forecast.pkl', 'wb') as f:
-            pkl.dump(random_oligos, f)
+    with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_forecast.pkl', 'rb') as f:
+        kl_divs = pkl.load(f)
+
+    kl_divs = {k: v for k, v in kl_divs.items() if k in filtered_samples}
+    random_oligos = random.sample(list(kl_divs.keys()), 1000)
+    random_kl_divs = {k: v for k, v in kl_divs.items() if k in random_oligos}
+
+    with open(f'{config.path}/kl_divs/random_filtered_kl_divs/random_subset_N=1000_{count + 1}_forecast.pkl', 'wb') as f:
+        pkl.dump(random_kl_divs, f)
 
     return
 
 
 def generate_boxplot():
-    with open(f'{config.path}/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
+    with open(f'{config.path}/kl_divs/random_filtered_kl_divs/random_subset_N=1000_3_forecast.pkl', 'rb') as f:
         kl_divs_forecast = pkl.load(f)
     f.close()
 
@@ -112,9 +120,11 @@ def generate_boxplot():
     #     kl_divs_lindel = pkl.load(f)
     # f.close()
 
-    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=1000_trained.pkl', 'rb') as f:
+    with open(f'C:/Users/Aaron/Desktop/Nanobiology/MSc/MEP/interpreting-ml-based-drops/Lindel/kl_divs/kl_divs_N=4372_trained.pkl', 'rb') as f:
         kl_divs_lindel_trained = pkl.load(f)
     f.close()
+
+    kl_divs_lindel_trained = {k: v for k, v in kl_divs_lindel_trained.items() if k in kl_divs_forecast}
 
     forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
     forecast_dict = {'FORECasT': forecast_values}
@@ -144,7 +154,7 @@ def generate_boxplot():
 
 
 def generate_forecast_boxplot():
-    with open(f'{config.path}/kl_divs/kl_divs_N=1e03.pkl', 'rb') as f:
+    with open(f'{config.path}/kl_divs/random_filtered_kl_divs/random_subset_N=1000_1_forecast.pkl', 'rb') as f:
         kl_divs_forecast = pkl.load(f)
     f.close()
 
@@ -161,13 +171,14 @@ def generate_forecast_boxplot():
 
     forecast_values = [kl_divs_forecast[x] for x in kl_divs_forecast]
 
-    centered_forecast_values = [forecast_values[x] for x in centered]
-    non_centered_forecast_values = [forecast_values[x] for x in not_centered]
+    centered_forecast_values = [forecast_values[x] for x in forecast_values if x in centered]
+    non_centered_forecast_values = [forecast_values[x] for x in forecast_values if x in not_centered]
+    # non_centered_forecast_values = [forecast_values[x] for x in not_centered]
 
-    # save centered forecast values to pkl file
-    with open(f'{config.path}/kl_divs/centered_forecast_kl_values.pkl', 'wb') as f:
-        pkl.dump(centered_forecast_values, f)
-    f.close()
+    # # save centered forecast values to pkl file
+    # with open(f'{config.path}/kl_divs/centered_forecast_kl_values.pkl', 'wb') as f:
+    #     pkl.dump(centered_forecast_values, f)
+    # f.close()
 
     centered_forecast_dict = {'FORECasT centered': centered_forecast_values}
     non_centered_forecast_dict = {'FORECasT non-centered': non_centered_forecast_values}
@@ -209,7 +220,7 @@ if __name__ == '__main__':
     tijsterman_oligos = config.hd_test_tijsterman_oligos
 
     kl_divs = {}
-    analyze = False
+    analyze = True
     baseline = False
 
     data_getter = len(tijsterman_oligos)
@@ -233,8 +244,8 @@ if __name__ == '__main__':
                     oligo_idx += 1
                     continue
                 data_found = True
-
                 print(oligo_name)
+
             current_oligo = guideset['ID'][oligo_idx][5:]
             oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
 
@@ -273,6 +284,11 @@ if __name__ == '__main__':
 
             kl_divs[oligo_name] = KL_div
 
+            print(f'KL divs saved to {config.path}/kl_divs/kl_divs_all_test_samples_forecast.pkl')
+
+            with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_forecast.pkl', 'wb') as f:
+                pkl.dump(kl_divs, f)
+
             num_samples += 1
             pbar.update(1)
             oligo_idx += 1
@@ -280,8 +296,6 @@ if __name__ == '__main__':
 
         pbar.close()
 
-        with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_forecast.pkl', 'wb') as f:
-            pkl.dump(kl_divs, f)
     else:
         if baseline:
             with open(f'{config.path}/kl_divs/kl_divs_baseline_N={config.performance_samples}.pkl', 'rb') as f:
@@ -297,4 +311,6 @@ if __name__ == '__main__':
                 print(mean_kl_div)
 
         # generate_boxplot()
-        # generate_forecast_boxplot() # plotting centered vs non centered distribution
+        generate_forecast_boxplot() # plotting centered vs non centered distribution
+        # for i in range(10):
+        #     generate_random_subset_kl_divs(i, filtered_oligos)

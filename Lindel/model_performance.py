@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
         # pbar.close()
 
-        with open(f'{config.path}/kl_divs/kl_divs_N={data_count}_trained.pkl', 'wb') as f:
+        with open(f'{config.path}/kl_divs/kl_divs_N={data_count}_trained_1.pkl', 'wb') as f:
             pkl.dump(kl_divs, f)
     else:
         with open(f'{config.path}/kl_divs/kl_divs_all_test_samples_lindel.pkl', 'rb') as f:
