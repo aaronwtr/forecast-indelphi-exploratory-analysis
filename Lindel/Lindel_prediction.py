@@ -102,7 +102,7 @@ def profilePlotter(profile, rep_reads, pam, oligo_idx, plot=True):
     return 0
 
 
-def predict_single_sample(oligo_idx, guideset, save=False, pretrained=False, **kwargs):
+def predict_single_sample(oligo_idx, guideset, save=True, pretrained=False, **kwargs):
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
@@ -168,7 +168,6 @@ def predict_single_sample(oligo_idx, guideset, save=False, pretrained=False, **k
             pred_sorted = {k: v for k, v in pred_sorted}
 
         else:
-            print(oligo_idx)
             cols = list(out_data.columns.values)
             in_features = x.shape[1]
             out_features = out_data.shape[1]
@@ -189,6 +188,8 @@ def predict_single_sample(oligo_idx, guideset, save=False, pretrained=False, **k
 
             pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
             pred_sorted = {k: v for k, v in pred_sorted}
+            pred_sorted = {k: v for k, v in pred_sorted.items() if not k.startswith('Indel_')}
+            print(pred_sorted)
 
             # tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (seq, random.randint(0, 100000))
             # cmd = INDELGENTARGET_EXE + ' %s %d %s' % (seq, pam_idx, tmp_genindels_file)
@@ -208,11 +209,12 @@ if __name__ == '__main__':
     test_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
 
     oligo_tmp = test_data[0]
-    oligo_row = oligo_tmp.loc['Oligo_4698']
+    oligo_row = oligo_tmp.loc['Oligo_19628']
 
-    oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
+    # oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
+    oligo_19628 = predict_single_sample(11237, guideset, data=test_data)
     # oligo_4698 = predict_single_sample(2664, guideset, pretrained=True)
-    print(oligo_4698)
+    # print(oligo_4698)
 
     # predicted_freqs = []
     # for idx in tqdm(oligos_idx):
