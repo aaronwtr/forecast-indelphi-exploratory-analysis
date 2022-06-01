@@ -75,7 +75,7 @@ def select_candidate_samples(filtered_samples):
                 continue
             data_found = True
 
-        threshold = 0.1
+        threshold = 0.5
 
         current_oligo = guideset['ID'][oligo_idx][5:]
         oligo_name = str(guideset['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
@@ -83,8 +83,8 @@ def select_candidate_samples(filtered_samples):
         # candidate_path = f"{config.path}/candidate_samples/test_data/large_deletions_freq_{int(threshold * 100)}+/" + \
         #                 oligo_name
 
-        candidate_path = f"E:/Aaron/Nanobiology/MSc/Year3/MEP/candidate_samples/test_data/single_nucleotide_insertions"\
-                f"_freq_{int(threshold * 100)}+/" + oligo_name
+        candidate_path = f"E:/Aaron/Nanobiology/MSc/Year3/MEP/candidate_samples/test_data/dinucleotide_insertions"\
+                f"_most_freq/" + oligo_name
 
         feature_data = pd.read_pickle(oligo_path)
         experimental_distribution = feature_data['Frac Sample Reads']
@@ -97,8 +97,7 @@ def select_candidate_samples(filtered_samples):
 
         indel_strip = indels[0].split('_')[0]
         pbar.update(1)
-        if oligo_name in filtered_samples and indel_strip[0] == 'I' and int(indel_strip[1:]) == 1 and first_freq >= \
-                threshold:
+        if oligo_name in filtered_samples and indel_strip[0] == 'I' and int(indel_strip[1:]) == 2:
             shutil.copyfile(oligo_path, candidate_path)
             num_samples += 1
 
