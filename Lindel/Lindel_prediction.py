@@ -180,6 +180,7 @@ def predict_single_sample(oligo_idx, guideset, save=True, pretrained=False, **kw
             model.load_state_dict(weights)
 
             y_hat = model(x).tolist()
+            y_hat = [round(x * 10, 3) for x in y_hat]
             y_hat = softmax(y_hat)
 
             pred_freq = {}
@@ -210,9 +211,11 @@ if __name__ == '__main__':
 
     oligo_tmp = test_data[0]
     oligo_row = oligo_tmp.loc['Oligo_19628']
+    oligo_row = oligo_tmp.loc['Oligo_4698']
 
     # oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
     oligo_19628 = predict_single_sample(11237, guideset, data=test_data)
+
     # oligo_4698 = predict_single_sample(2664, guideset, pretrained=True)
     # print(oligo_4698)
 
