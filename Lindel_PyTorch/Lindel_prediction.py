@@ -172,6 +172,8 @@ def predict_single_sample(oligo_idx, guideset, save=True, pretrained=False, **kw
             in_features = x.shape[1]
             out_features = out_data.shape[1]
 
+            print(f'Oligo_{oligo_name}')
+
             x = x.loc[f'Oligo_{oligo_name}']
             x = x.values
             x = torch.tensor(x, dtype=torch.float)
@@ -214,7 +216,7 @@ if __name__ == '__main__':
     oligo_row = oligo_tmp.loc['Oligo_4698']
 
     # oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
-    oligo_19628 = predict_single_sample(11237, guideset, data=test_data)
+    oligo_181 = predict_single_sample(3817, guideset, data=test_data)
 
     # oligo_4698 = predict_single_sample(2664, guideset, pretrained=True)
     # print(oligo_4698)
