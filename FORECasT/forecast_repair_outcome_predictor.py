@@ -75,7 +75,7 @@ class RepairOutcomeGenerator:
         self.current_oligo = None
         self.pam_idx = None
         self.target_seq = None
-        self.folder = None
+        self.folder = "single_nucleotide_insertions_freq_50+"
 
     def model(self, x):
         return ROG.predictionModel(x, DEFAULT_MODEL, self.target_seq, self.pam_idx)
@@ -138,7 +138,8 @@ class RepairOutcomeGenerator:
         pbar.close()
 
     def get_candidate_repair_profiles(self):
-        sample_types = os.listdir(config.candidate_samples)
+        # sample_types = os.listdir(config.candidate_samples)
+        sample_types = ['single_nucleotide_insertions_freq_50+']
         for sample_type in sample_types:
             self.folder = sample_type
             folder_contents = os.listdir(f"{config.candidate_samples}/{sample_type}")
