@@ -294,7 +294,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
     """
 
     # explainer = KernelExplainer(model, background_data, link='logit')
-    explainer = GradientExplainer(model, background_data)
+    # explainer = GradientExplainer(model, background_data)
 
     if isinstance(config.nsamples, float):
         nsamples = int(config.nsamples)

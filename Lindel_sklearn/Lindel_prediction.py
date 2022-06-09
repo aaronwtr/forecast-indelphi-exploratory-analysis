@@ -21,7 +21,8 @@ def profilePlotter(profile, rep_reads, pam, oligo_idx, plot=True):
         if pp == 0:
             return 0
 
-        plt.savefig(f"repair_outcomes/candidate_repair_outcomes/deletions/'Oligo_{oligo_idx}_{config.repair_outcome_of_interest}.pdf")
+        plt.savefig(
+            f"repair_outcomes/candidate_repair_outcomes/deletions/'Oligo_{oligo_idx}_{config.repair_outcome_of_interest}.pdf")
         plt.close()
         plot = False
 
@@ -31,6 +32,7 @@ def profilePlotter(profile, rep_reads, pam, oligo_idx, plot=True):
 
 
 def predict_all_samples(x, guideset, train, truth):
+    x_indices = test_data.index.tolist()
     truth_columns = truth.columns.tolist()
     truth = truth.values
     truth = np.log(truth / (1 - truth))
@@ -45,34 +47,20 @@ def predict_all_samples(x, guideset, train, truth):
             model = pkl.load(f)
     else:
         model = MultiOutputRegressor(estimator=LinearRegression()).fit(train, truth)
-        pkl.dump(model, open(f'model_params/sklearn_lin_model'))
+        pkl.dump(model, open(f'{config.path}/model_params/sklearn_lin_model', 'wb'))
 
-    y_hat = model.predict(x)
+    if not os.path.exists(f'{config.path}/predicted_repair_outcomes_test_data_lindel.pkl'):
+        y_hat = model.predict(x)
+        y_hat = y_hat * 5
+        y_hat = np.around(y_hat, decimals=3)
+        y_hat = np.exp(y_hat) / np.sum(np.exp(y_hat), axis=1).reshape(-1, 1)
+        pkl.dump(y_hat, open(f'{config.path}/predicted_repair_outcomes_test_data_lindel.pkl', 'wb'))
+    else:
+        y_hat = pkl.load(open(f'{config.path}/predicted_repair_outcomes_test_data_lindel.pkl', 'rb'))
 
-    # y_hat = model.predict_proba(x)
-    # y_hat = model(x).tolist()
-    # y_hat = [round(x * 10, 3) for x in y_hat]
-    # y_hat = softmax(y_hat)
-    #
-    # cols = list(truth.columns.values)
-    # pred_freq = {}
-    # for i in range(len(y_hat)):
-    #     pred_freq[cols[i]] = y_hat[i]
-    #
-    # pred_sorted = sorted(pred_freq.items(), key=lambda kv: kv[1], reverse=True)
-    # pred_sorted = {k: v for k, v in pred_sorted}
-    # pred_sorted = {k: v for k, v in pred_sorted.items() if not k.startswith('Indel_')}
-    # print(pred_sorted)
+    y_hat = pd.DataFrame(y_hat, columns=truth_columns, index=x_indices)
 
-    # tmp_genindels_file = 'tmp_genindels_%s_%d.txt' % (seq, random.randint(0, 100000))
-    # cmd = INDELGENTARGET_EXE + ' %s %d %s' % (seq, pam_idx, tmp_genindels_file)
-    #
-    # subprocess.check_call(cmd.split())
-    # rep_reads = fetchRepReads(tmp_genindels_file)
-    #
-    # profilePlotter(pred_sorted, rep_reads, pam_idx, oligo_name)
-
-    return pred_sorted
+    return y_hat
 
 
 if __name__ == '__main__':
@@ -83,3 +71,10 @@ if __name__ == '__main__':
     train_data, ground_truth_train = pkl.load(open(f'{config.path}/training_data.pkl', 'rb'))
 
     prediction = predict_all_samples(test_data, guideset, train_data, ground_truth_train)
+
+    ioi = 1796
+    test_data_indices = test_data.index.tolist()
+    print(test_data_indices[ioi])
+    row = prediction.iloc[ioi, :]
+    row = row.sort_values(ascending=False)
+    print(row)
