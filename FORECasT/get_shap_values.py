@@ -93,7 +93,7 @@ def getBackgroundData(guidedata, ioi):
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
     samples = pd.read_pickle(
-        f"{config.path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        f"E:/Aaron/Nanobiology/MSc/Year3/MEP/train/Tijsterman_Analyser/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
     )
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
 
@@ -109,8 +109,8 @@ def getBackgroundData(guidedata, ioi):
             continue
 
         feature_data = pd.read_pickle(
-            f"{config.path}/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5]) + '_' + str(
-                current_oligo)
+            f"E:/Aaron/Nanobiology/MSc/Year3/MEP/train/Tijsterman_Analyser/" + str(guideset['ID'][oligo_idx][0:5])
+            + '_' + str(current_oligo)
         )
 
         model_df_temp = getKernelExplainerModelInput(feature_data, current_oligo)
@@ -139,7 +139,8 @@ def getBackgroundDataZeros(guidedata):
     current_oligo = 38
 
     samples = pd.read_pickle(
-        f"{config.path}/train/Tijsterman_Analyser/" + str(guidedata['ID'][0][0:5]) + '_' + str(current_oligo)
+        f"E:/Aaron/Nanobiology/MSc/Year3/MEP/train/Tijsterman_Analyser/" + str(guidedata['ID'][0][0:5]) + '_' +
+        str(current_oligo)
     )
 
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
@@ -163,7 +164,8 @@ def getExplanationData(guidedata, ioi):
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
     samples = pd.read_pickle(
-        f"{config.path}/candidate_samples/test_data/single_nucleotide_insertions_freq_50+/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
+        f"{config.path}/candidate_samples/test_data/large_deletions_freq_50+/" + str(
+            guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
     )
 
     proc_samples = getKernelExplainerModelInput(samples, current_oligo)
@@ -309,7 +311,8 @@ if __name__ == '__main__':
         print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
     else:
         print("Getting Shapley values for one sample...")
-        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df,
+                                                       explain_sample=config.shap_type)
         num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
         file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
         with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
