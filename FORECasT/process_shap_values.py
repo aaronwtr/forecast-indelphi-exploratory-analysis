@@ -15,9 +15,12 @@ def open_shap_data(path):
 
     files = os.listdir(path)
     values = []
+    ex_vals = []
+    filenames = []
 
     for file in files:
         if file != 'archive':
+            print(file)
             with open(path + file, 'rb') as f:
                 if config.shap_type == 'global':
                     shap_vals = pkl.load(f)
@@ -26,12 +29,12 @@ def open_shap_data(path):
                     shap_vals, ex_value = pkl.load(f)
                     shap_vals[np.isnan(shap_vals)] = 0.0
                     values.append(shap_vals)
-
-                    return values, feature_data, ex_value
+                    ex_vals.append(ex_value)
+                    filenames.append('_'.join(file.split('_')[:4]))
 
             values.append(shap_vals)
 
-    return values, feature_data
+    return values, feature_data, ex_vals, filenames
 
 
 def rank_features(x, feature_data):
@@ -116,13 +119,13 @@ if __name__ == '__main__':
     robustness of the Shapley value method. 
     '''
 
-    base_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations/D18/n_1000/nsamples={config.nsamples}/'
+    base_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations/I1/n_1000/nsamples={config.nsamples}/'
     if config.shap_type == 'global':
-        shap_values, features = open_shap_data(base_path)
+        shap_values, features, ex_values, filenames = open_shap_data(base_path)
     else:
-        shap_values, features, ex_value = open_shap_data(base_path)
-    shap_correlations_plot = False
+        shap_values, features, ex_values, filenames = open_shap_data(base_path)
 
+    shap_correlations_plot = False
     if shap_correlations_plot:
         pccs = get_correlations(shap_values, features)
         plot_pccs(pccs)
@@ -131,7 +134,7 @@ if __name__ == '__main__':
     Generating summary plots for a single instance in the repair outcome dataset.
     '''
 
-    summary_plot = False
+    summary_plot = True
     if summary_plot:
         for value_matrix in shap_values:
             shap.summary_plot(value_matrix, features)
@@ -140,25 +143,27 @@ if __name__ == '__main__':
     Generating force- and bar plot for a single instance in the repair outcome dataset.
     '''
 
-    force_plot = True
+    force_plot = False
     if force_plot:
-        shap.initjs()
-        plt.rcParams['ytick.labelsize'] = 'small'
-        shap.bar_plot(shap_values[0], max_display=10, show=False)
+        for i in range(len(shap_values)):
+            print(filenames[i])
+            shap.initjs()
+            plt.rcParams['ytick.labelsize'] = 'small'
+            shap.bar_plot(shap_values[i], max_display=10, show=False)
 
-        ytick_labels_tmp = plt.gca().get_yticklabels()
-        ytick_labels = [ytick_label.get_text() for ytick_label in ytick_labels_tmp]
-        ytick_labels_idx = [int(ytick_label.split(' ')[1]) for ytick_label in ytick_labels]
-        feature_names = features.columns
-        feature_names_at_idx = [feature_names[idx] for idx in ytick_labels_idx]
-        ytick_locs = [i + 1 for i in range(len(feature_names_at_idx))]
-        ytick_locs = ytick_locs[::-1]
-        plt.yticks(ytick_locs, feature_names_at_idx)
-        plt.tight_layout()
-        plt.show()
+            ytick_labels_tmp = plt.gca().get_yticklabels()
+            ytick_labels = [ytick_label.get_text() for ytick_label in ytick_labels_tmp]
+            ytick_labels_idx = [int(ytick_label.split(' ')[1]) for ytick_label in ytick_labels]
+            feature_names = features.columns
+            feature_names_at_idx = [feature_names[idx] for idx in ytick_labels_idx]
+            ytick_locs = [i + 1 for i in range(len(feature_names_at_idx))]
+            ytick_locs = ytick_locs[::-1]
+            plt.yticks(ytick_locs, feature_names_at_idx)
+            plt.tight_layout()
+            plt.show()
 
-        force = shap.force_plot(ex_value, shap_values[0], features.iloc[0, :], contribution_threshold=0.5)
-        shap.save_html(f'{config.path}/shap_values_visualizations/force_plots/results/D18/n_1000/'
-                       f'nsamples={config.nsamples}/{config.indel_of_interest}_force_plot.html', force)
-        plt.clf()
-        plt.close()
+            force = shap.force_plot(ex_values[i], shap_values[i], features.iloc[0, :], contribution_threshold=0.5)
+            shap.save_html(f'{config.path}/shap_values_visualizations/force_plots/results/I1/n_1000/'
+                           f'nsamples={config.nsamples}/{filenames[i]}_force_plot.html', force)
+            plt.clf()
+            plt.close()
