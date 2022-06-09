@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
 import shap.links
-from shap import GradientExplainer
-# from shap import KernelExplainer
+# from shap import GradientExplainer
+from shap import KernelExplainer
+from warnings import simplefilter
 import os
 import config
 import pickle as pkl
@@ -256,7 +257,7 @@ def getExplanationData(guidedata, ioi, prereq):
         cont = True
 
         for index, row in guideset.iterrows():
-            if current_oligo == row['ID'][5:]: # should not be oligo of interest!
+            if current_oligo == row['ID'][5:]:  # should not be oligo of interest!
                 oligo_idx = index + 1
                 pam_idx = row['PAM Index']
                 nt_to_delete = pam_idx - 33  # We need to make sure the PAM is at the 33 idx
@@ -281,7 +282,11 @@ def getExplanationData(guidedata, ioi, prereq):
     return explanation_data
 
 
-def getShapleyValues(model, background_data, explanation_data, explain_sample='global', link=shap.links.logit):
+def modelWrapper(x):
+    return model(torch.from_numpy(x)).detach().numpy()
+
+
+def getShapleyValues(background_data, explanation_data, explain_sample='global', link=shap.links.logit):
     """
     Compute the SHAP values for the explanation data. If no specific sample is specified, the SHAP values of the entire
     explanation set are computed. If explain_sample is one, then automatically the first instance of the explanation set
@@ -293,8 +298,10 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
     :return: Returns either a Shapley value matrix, or a tuple with the Shapley value matrix and the expected value.
     """
 
-    # explainer = KernelExplainer(model, background_data, link='logit')
-    explainer = GradientExplainer(model, background_data)
+    torch.set_grad_enabled(False)
+
+    explainer = KernelExplainer(modelWrapper, background_data, link='logit')
+    # explainer = GradientExplainer(model, background_data)
 
     if isinstance(config.nsamples, float):
         nsamples = int(config.nsamples)
@@ -317,7 +324,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
             shapley_val = pkl.load(
                 open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data, nsamples=200)
+            shapley_val = explainer.shap_values(explanation_data, nsamples=nsamples)
 
         return shapley_val
 
@@ -326,7 +333,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
             shapley_val, expected_val = pkl.load(
                 open(f'{shap_save_path_0}/{exact_save_location_0}/{file_name_prefix_0}{num_files_0}.pkl', 'rb'))
         else:
-            shapley_val = explainer.shap_values(explanation_data.iloc[0, :], nsamples=500)
+            shapley_val = explainer.shap_values(explanation_data[0, :], nsamples=nsamples)
             expected_val = explainer.expected_value
 
         return shapley_val, expected_val
@@ -334,6 +341,7 @@ def getShapleyValues(model, background_data, explanation_data, explain_sample='g
 
 if __name__ == '__main__':
     # weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
+    simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
     weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
@@ -350,11 +358,11 @@ if __name__ == '__main__':
     background_df = getBackgroundData(explanation_df)
     background_df = background_df.values
     background_df = np.float64(background_df)
-    background_df = torch.tensor(background_df, dtype=torch.float64)
+    # background_df = torch.tensor(background_df, dtype=torch.float64)
 
     explanation_df = explanation_df.values
     explanation_df = np.float64(explanation_df)
-    explanation_df = torch.tensor(explanation_df, dtype=torch.float64)
+    # explanation_df = torch.tensor(explanation_df, dtype=torch.float64)
 
     _, out_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
 
@@ -370,7 +378,7 @@ if __name__ == '__main__':
 
     if config.shap_type == 'global':
         print("Getting Shapley values for all samples...")
-        shap_values = getShapleyValues(model, background_df, explanation_df, explain_sample=config.shap_type)
+        shap_values = getShapleyValues(background_df, explanation_df, explain_sample=config.shap_type)
         num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
         file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
         with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl', 'wb') as file:
@@ -379,8 +387,7 @@ if __name__ == '__main__':
         print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
     else:
         print("Getting Shapley values for one sample...")
-        shap_values, expected_value = getShapleyValues(model, background_df, explanation_df,
-                                                       explain_sample=config.shap_type)
+        shap_values, expected_value = getShapleyValues(background_df, explanation_df, explain_sample=config.shap_type)
         num_files = len(list(os.listdir(f'{shap_save_path}/{exact_save_location}')))
         file_name_prefix = f'{config.indel_of_interest}_{config.shap_type}_shap_values_'
         with open(f'{shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl',
@@ -389,8 +396,7 @@ if __name__ == '__main__':
         file.close()
         print(f"Shapley values saved to {shap_save_path}/{exact_save_location}/{file_name_prefix}{num_files + 1}.pkl")
 
-
     # TODO 1 Wrap Lindel prediction model in a function that that takes in the explanation dataset and is able to compute
     # TODO 1 the output for the model.
-        # TODO 1A Rewrite the prediction function to take explanation dataset and perform the prediction based on a single
-        # TODO 1A feature vector rather than separate feature vectors for deletions and insertions.
+    # TODO 1A Rewrite the prediction function to take explanation dataset and perform the prediction based on a single
+    # TODO 1A feature vector rather than separate feature vectors for deletions and insertions.

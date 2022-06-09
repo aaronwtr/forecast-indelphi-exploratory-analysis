@@ -138,8 +138,8 @@ if __name__ == '__main__':
     Generating summary plots for a single instance in the repair outcome dataset.
     '''
 
-    features = features.iloc[:shap_values[0].shape[0], :]
-    summary_plot = True
+    features = features.iloc[shap_values[0].shape[0], :]
+    summary_plot = False
     if summary_plot:
         for value_matrix in shap_values:
             shap.summary_plot(value_matrix, features)
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     Generating force- and bar plot for a single instance in the repair outcome dataset.
     '''
 
-    force_plot = False
+    force_plot = True
     if force_plot:
         shap.initjs()
         plt.rcParams['ytick.labelsize'] = 'small'

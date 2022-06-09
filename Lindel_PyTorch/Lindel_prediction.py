@@ -216,7 +216,7 @@ if __name__ == '__main__':
     oligo_row = oligo_tmp.loc['Oligo_4698']
 
     # oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
-    oligo_181 = predict_single_sample(3817, guideset, data=test_data)
+    oligo_181 = predict_single_sample(2, guideset, data=test_data)
 
     # oligo_4698 = predict_single_sample(2664, guideset, pretrained=True)
     # print(oligo_4698)
