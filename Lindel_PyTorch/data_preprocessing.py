@@ -198,21 +198,18 @@ def fetch_candidate_samples():
     return candidate_samples
 
 
-def get_train_data(guidedata, prereq):
-    if os.path.exists(f'{config.path}/training_data.pkl'):
-        train_data = pd.read_pickle(f'{config.path}/training_data.pkl')
+def get_train_data(guidedata, prereq, test_data_columns):
+    if os.path.exists(f'{config.path}/train_data.pkl'):
+        train_data = pd.read_pickle(f'{config.path}/train_data.pkl')
         return train_data
     else:
-        # candidate_samples = fetch_candidate_samples()
-        candidate_samples = []
-
         tijsterman_oligos = config.tmp_tijsterman_oligos
         tijsterman_oligos_key = [int(x.split('_')[1]) for x in tijsterman_oligos]
         tijsterman_oligos_dict = dict(zip(tijsterman_oligos_key, tijsterman_oligos))
         tijsterman_oligos_dict = dict(sorted(tijsterman_oligos_dict.items()))
         tijsterman_oligos = list(tijsterman_oligos_dict.values())
 
-        ground_truth_dict = {}
+        ground_truth_list = []
 
         fetched_data = 0
         oligo_idx = 0
@@ -234,7 +231,6 @@ def get_train_data(guidedata, prereq):
             cont = False
             current_oligo = guidedata['ID'][oligo_idx][5:]
             seq = guidedata['TargetSequence'][oligo_idx]
-            print('Oligo: ', current_oligo)
             if f"Oligo_{current_oligo}" in tijsterman_oligos:
                 pam_idx = guidedata['PAM Index'][oligo_idx]
                 nt_to_delete = int(pam_idx) - 33
@@ -254,11 +250,8 @@ def get_train_data(guidedata, prereq):
                 ground_truth = exp_data['Frac Sample Reads']
                 ground_truth_labels = exp_data['Indel']
 
-                for i, indel in enumerate(ground_truth_labels):
-                    if indel not in list(ground_truth_dict.keys()):
-                        ground_truth_dict[indel] = [ground_truth[i]]
-                    else:
-                        ground_truth_dict[indel].append(ground_truth[i])
+                ground_truth_dict = {indel: ground_truth[i] for i, indel in enumerate(ground_truth_labels)}
+                ground_truth_list.append(ground_truth_dict)
 
                 if not len(feature_vectors):
                     feature_vectors = features_tmp
@@ -273,31 +266,47 @@ def get_train_data(guidedata, prereq):
         feature_matrix = pd.DataFrame(feature_vectors, columns=feature_labels)
         feature_matrix.index = sample_names
 
-        max_len = max([len(x) for x in ground_truth_dict.values()])
-        for key in ground_truth_dict.keys():
-            ground_truth_dict[key] = np.pad(ground_truth_dict[key], (0, max_len - len(ground_truth_dict[key])),
-                                            'constant')
+        with open(f'{config.path}/ground_truth_list.pkl', 'wb') as f:
+            pkl.dump(ground_truth_list, f)
 
-        ground_truths = pd.DataFrame(ground_truth_dict)
+        feature_matrix.to_pickle(f'{config.path}/feature_matrix.pkl')
+
+        ground_truths = pd.DataFrame(ground_truth_list)
+        ground_truths = ground_truths.fillna(0.0)
+
+        top_10_indels = test_data_columns
+        ground_truth_list = []
+
+        for row in ground_truths.iterrows():
+            print(str(row[0]) + '/' + str(len(ground_truths)))
+            row_dict = row[1].to_dict()
+            row_dict_temp = {}
+            for key in row_dict.keys():
+                if key in top_10_indels:
+                    row_dict_temp[key] = row_dict[key]
+            for indel in top_10_indels:
+                if indel not in row_dict_temp.keys():
+                    row_dict_temp[indel] = 0.0
+            row_dict_temp['Remainder'] = 1 - sum(row_dict_temp.values())
+            ground_truth_list.append(row_dict_temp)
+
+        ground_truths = pd.DataFrame(ground_truth_list)
 
         return feature_matrix, ground_truths
 
 
-def get_test_data(guidedata, prereq, train_indels):
+def get_test_data(guidedata, prereq):
     if os.path.exists(f'{config.path}/test_data.pkl'):
         test_data = pd.read_pickle(f'{config.path}/test_data.pkl')
         return test_data
     else:
-        # candidate_samples = fetch_candidate_samples()
-        candidate_samples = []
-
         test_tijsterman_oligos = config.tmp_test_tijsterman_oligos
         tijsterman_oligos_key = [int(x.split('_')[1]) for x in test_tijsterman_oligos]
         tijsterman_oligos_dict = dict(zip(tijsterman_oligos_key, test_tijsterman_oligos))
         tijsterman_oligos_dict = dict(sorted(tijsterman_oligos_dict.items()))
         tijsterman_oligos = list(tijsterman_oligos_dict.values())
 
-        ground_truth_dict = {}
+        ground_truth_list = []
 
         fetched_data = 0
         oligo_idx = 0
@@ -308,7 +317,7 @@ def get_test_data(guidedata, prereq, train_indels):
 
         print('Collecting testing data...')
 
-        data_getter = len(test_tijsterman_oligos)        
+        data_getter = len(test_tijsterman_oligos)
         data_count = 0
 
         last_oligo = tijsterman_oligos[-1]
@@ -332,17 +341,15 @@ def get_test_data(guidedata, prereq, train_indels):
                 sample_names.append(f'Oligo_{current_oligo}')
                 features_tmp, feature_labels = get_features(seq, mh_features)
 
-                exp_data = pd.read_pickle(f"{config.tmp_test_forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
-                                          str(current_oligo))
+                exp_data = pd.read_pickle(
+                    f"{config.tmp_test_forecast_path}/" + str(guidedata['ID'][oligo_idx][0:5]) + '_' +
+                    str(current_oligo))
 
                 ground_truth = exp_data['Frac Sample Reads']
                 ground_truth_labels = exp_data['Indel']
 
-                for i, indel in enumerate(ground_truth_labels):
-                    if indel not in list(ground_truth_dict.keys()):
-                        ground_truth_dict[indel] = [ground_truth[i]]
-                    else:
-                        ground_truth_dict[indel].append(ground_truth[i])
+                ground_truth_dict = {indel: ground_truth[i] for i, indel in enumerate(ground_truth_labels)}
+                ground_truth_list.append(ground_truth_dict)
 
                 if not len(feature_vectors):
                     feature_vectors = features_tmp
@@ -357,26 +364,41 @@ def get_test_data(guidedata, prereq, train_indels):
         feature_matrix = pd.DataFrame(feature_vectors, columns=feature_labels)
         feature_matrix.index = sample_names
 
-        max_len = max([len(x) for x in ground_truth_dict.values()])
-        for key in ground_truth_dict.keys():
-            ground_truth_dict[key] = np.pad(ground_truth_dict[key], (0, max_len - len(ground_truth_dict[key])), 'constant')
+        ground_truths = pd.DataFrame(ground_truth_list)
+        ground_truths = ground_truths.fillna(0.0)
 
-        ground_truths = pd.DataFrame(ground_truth_dict)
-        gt_columns = list(ground_truths.columns)
-        indels_to_add = train_indels - len(gt_columns)
-        for i in range(indels_to_add):
-            ground_truths[f'Indel_{i}'] = np.zeros(len(ground_truths))
+        top_10_indels = []
+        for row in ground_truths.iterrows():
+            row = row[1].sort_values(ascending=False)
+            top_10 = row.index[:5]
+            for indel in top_10:
+                if indel not in top_10_indels:
+                    top_10_indels.append(indel)
 
-        return feature_matrix, ground_truths
+        ground_truths_clipped = ground_truths[top_10_indels]
+        ground_truths_clipped = ground_truths_clipped.reindex(sorted(ground_truths_clipped.columns), axis=1)
+
+        remainder_list = []
+        for i in tqdm(range(ground_truths.shape[0])):
+            remainder_freqs = []
+            for j in range(ground_truths.shape[1]):
+                if ground_truths.columns[j] not in top_10_indels:
+                    remainder_freqs.append(ground_truths.iloc[i, j])
+            remainder_sum = sum(remainder_freqs)
+            remainder_list.append(remainder_sum)
+
+        ground_truths_clipped['Remainder'] = remainder_list
+
+        return feature_matrix, ground_truths_clipped
 
 
 if __name__ == '__main__':
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
 
-    training_data = get_train_data(guideset, prerequesites)
-    pd.to_pickle(training_data, f'{config.path}/training_data.pkl')
-    train_size = training_data[1].shape[1]
+    testing_data = get_test_data(guideset, prerequesites)
+    pd.to_pickle(testing_data, f'{config.path}/test_data.pkl')
+    test_data_cols = testing_data[1].columns
 
-    test_data = get_test_data(guideset, prerequesites, train_size)
-    pd.to_pickle(test_data, f'{config.path}/test_data.pkl')
+    training_data = get_train_data(guideset, prerequesites, test_data_cols)
+    pd.to_pickle(training_data, f'{config.path}/train_data.pkl')
