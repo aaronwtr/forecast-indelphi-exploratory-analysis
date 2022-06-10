@@ -266,11 +266,6 @@ def get_train_data(guidedata, prereq, test_data_columns):
         feature_matrix = pd.DataFrame(feature_vectors, columns=feature_labels)
         feature_matrix.index = sample_names
 
-        with open(f'{config.path}/ground_truth_list.pkl', 'wb') as f:
-            pkl.dump(ground_truth_list, f)
-
-        feature_matrix.to_pickle(f'{config.path}/feature_matrix.pkl')
-
         ground_truths = pd.DataFrame(ground_truth_list)
         ground_truths = ground_truths.fillna(0.0)
 
