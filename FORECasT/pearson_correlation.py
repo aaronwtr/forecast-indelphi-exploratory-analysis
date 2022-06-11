@@ -4,6 +4,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import config
 
 
 PEARSON_PLOT_OUTPUT_DIR = '../pearson_ccs_FORECasT/'
@@ -73,46 +74,21 @@ def get_top_abs_correlations(df, n=5):
 
 
 if __name__ == '__main__':
-    with open('train/Tijsterman_Analyser/Oligo_38', 'rb') as f:
+    with open(f'E:/Aaron/Nanobiology/MSc/Year3/MEP/train/Tijsterman_Analyser/Oligo_38', 'rb') as f:
         sample = pd.read_pickle(f)
 
     f, ax = plt.subplots(figsize=(10, 8))
     corr = sample.corr()
-    corr = corr.iloc[3300:3330, 3300:3330]
-    # replace nan with 0
-    corr = corr.fillna(0)
+    corr_ = corr.fillna(0)
+    corr_.values[np.arange(corr_.shape[0]), np.arange(corr_.shape[0])] = 1.0
+
+    indices = np.arange(0, corr.shape[1])
+    np.random.seed(2000)
+    sampled_indices = np.random.choice(indices, size=30, replace=False)
+
+    corr = corr_.iloc[sampled_indices, sampled_indices]
 
     sns.heatmap(corr, mask=np.zeros_like(corr, dtype=bool),
                 square=True, ax=ax, vmin=-1, vmax=1, cmap='bwr', xticklabels=False, yticklabels=False)
-    # remove x and y labels
-
     plt.tight_layout()
     plt.show()
-
-    # top_corrs = get_top_abs_correlations(corr, n=20)
-
-    # with open('top_corrs.pkl', 'wb') as f:
-    #     pd.to_pickle(top_corrs, f)
-
-    # open top_corrs from file
-    # with open('top_corrs.pkl', 'rb') as f:
-    #     top_corrs = pd.read_pickle(f)
-    #
-    # top_corrs_idx = list(top_corrs.index)
-    # top_corrs_vals = list(top_corrs.values)
-    # top_corr_diag = np.diag(top_corrs_vals)
-    # print(top_corr_diag)
-    # corr_idx_1 = []
-    # corr_idx_2 = []
-    # for corr in top_corrs_idx:
-    #     corr_idx_1.append(corr[0])
-    #     corr_idx_2.append(corr[1])
-
-    # # make a diagonal dataframe with corr_idx_1 and corr_idx_2 as indices and columns respectively and top_corrs_vals as values
-    # corr_df = pd.DataFrame(top_corr_diag, index=corr_idx_1, columns=corr_idx_2)
-    # top_10 features =
-    #
-    # # find top 20 pairs of correlated features by correlation coefficient and put them in a square dataframe
-    #
-
-
