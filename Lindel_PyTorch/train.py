@@ -39,6 +39,7 @@ if __name__ == '__main__':
 
     train_loss_history = []
     test_loss_history = []
+    err_increase = 0
 
     for epoch in tqdm(range(config.epochs)):
         perm = torch.randperm(x_train.shape[0])
@@ -49,9 +50,8 @@ if __name__ == '__main__':
             y_pred_train = model(x_batch)
             train_loss = criterion(y_pred_train, y_batch)
             train_loss.backward()
-            train_loss_history.append(train_loss.item())
             optimizer.step()
-
+        train_loss_history.append(train_loss.item())
         model.eval()
         with torch.no_grad():
             y_pred_test = model(x_test)
@@ -60,19 +60,22 @@ if __name__ == '__main__':
 
         print(f'Epoch: {epoch + 1}, Train loss: {train_loss.item():.4f}, Test loss: {test_loss.item():.4f}')
 
+        if epoch > 2:
+            if test_loss_history[-1] > test_loss_history[-2]:
+                err_increase += 1
+
         early_stop_check_sum = np.round(sum(test_loss_history[-config.patience:]), 4)
         early_stop_check_prod = np.round(config.patience * test_loss_history[-1], 4)
 
-        if early_stop_check_sum == early_stop_check_prod:
+        if early_stop_check_sum == early_stop_check_prod or err_increase == config.patience:
             break
 
-    with open(f'{config.path}/train_losses/train_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl', 'wb') as file:
+    with open(f'{config.path}/losses/train_losses/train_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl', 'wb') as file:
         pkl.dump(train_loss_history, file)
     file.close()
 
-    with open(f'{config.path}/test_losses/test_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl', 'wb') as file:
+    with open(f'{config.path}/losses/test_losses/test_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl', 'wb') as file:
         pkl.dump(test_loss_history, file)
     file.close()
 
-    torch.save(model.state_dict(),
-               f'{config.path}/model_params/model_params_{epoch}_epochs_{config.l2}_weight_decay.pkl')
+    torch.save(model.state_dict(), f'{config.path}/model_params/model_params_{epoch}_epochs_{config.l2}_weight_decay.pkl')
