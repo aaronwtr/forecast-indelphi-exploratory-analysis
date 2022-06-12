@@ -20,7 +20,7 @@ def predict_all_samples_legacy(save=False, pretrained=False, **kwargs):
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
-        weights = torch.load(open(f'{config.path}/model_params/model_params_37_epochs_1_weight_decay.pkl', 'rb'))
+        weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
     else:
         weights = pre_trained_weights
 
@@ -106,7 +106,7 @@ def predict_single_sample(oligo_idx, guideset, save=True, pretrained=False, **kw
     if 'data' in kwargs:
         x, out_data = kwargs['data']
         pretrained = False
-        weights = torch.load(open(f'{config.path}/model_params/model_params_37_epochs_1_weight_decay.pkl', 'rb'))
+        weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
     else:
         weights = pre_trained_weights
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     oligo_row = oligo_tmp.loc['Oligo_4698']
 
     # oligo_4698 = predict_single_sample(2664, guideset, data=test_data)
-    oligo_181 = predict_single_sample(8125, guideset, data=test_data)
+    oligo_181 = predict_single_sample(92, guideset, data=test_data)
 
     # oligo_4698 = predict_single_sample(2664, guideset, pretrained=True)
     # print(oligo_4698)

@@ -14,7 +14,18 @@ if __name__ == '__main__':
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    x_test, y_test = get_test_data(guideset, prerequesites)
+
+    x_train, y_train = get_train_data(guideset, prerequesites)
+
+    x_train = x_train.values
+    x_train = torch.tensor(x_train, dtype=torch.float)
+    x_train = x_train.to(device)
+    y_train = y_train.values
+    y_train = torch.tensor(y_train, dtype=torch.float)
+    y_train = y_train.to(device)
+    train_size = y_train.shape[1]
+
+    x_test, y_test = get_test_data(guideset, prerequesites, train_size)
     test_data_cols = y_test.columns
 
     x_test = x_test.values
@@ -23,15 +34,6 @@ if __name__ == '__main__':
     y_test = y_test.values
     y_test = torch.tensor(y_test, dtype=torch.float)
     y_test = y_test.to(device)
-
-    x_train, y_train = get_train_data(guideset, prerequesites, test_data_cols)
-
-    x_train = x_train.values
-    x_train = torch.tensor(x_train, dtype=torch.float)
-    x_train = x_train.to(device)
-    y_train = y_train.values
-    y_train = torch.tensor(y_train, dtype=torch.float)
-    y_train = y_train.to(device)
 
     model = LogisticRegression(x_train.shape[1], y_train.shape[1])  # number of features, number of output classes
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=config.l2)
