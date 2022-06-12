@@ -342,7 +342,7 @@ def getShapleyValues(background_data, explanation_data, explain_sample='global',
 if __name__ == '__main__':
     # weights = pkl.load(open(os.path.join(Lindel.__path__[0], "Model_weights.pkl"), 'rb'))
     simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
-    weights = torch.load(open(f'{config.path}/model_params/model_params_344_epochs_1e-05_weight_decay.pkl', 'rb'))
+    weights = torch.load(open(f'{config.path}/model_params/model_params_37_epochs_1_weight_decay.pkl', 'rb'))
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
 
