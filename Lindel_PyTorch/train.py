@@ -9,6 +9,29 @@ import os
 from tqdm import tqdm
 import numpy as np
 
+
+def accuracy(y_pred, y_true, labels):
+    # transform y_pred and y_true torch.tensors to ndarrays
+    y_pred = y_pred.detach().numpy()
+    y_true = y_true.detach().numpy()
+    y_pred = pd.DataFrame(y_pred, columns=labels)
+    y_true = pd.DataFrame(y_true, columns=labels)
+
+    for (i, row), (j, row_) in zip(y_pred.iterrows(), y_true.iterrows()):
+        y_pred = row.to_dict()
+        y_true = row_.to_dict()
+        y_pred = dict(sorted(y_pred.items(), key=lambda x: x[1], reverse=True))
+        y_true = dict(sorted(y_true.items(), key=lambda x: x[1], reverse=True))
+        top_y_pred = list(y_pred.keys())[0]
+        top_y_true = list(y_true.keys())[0]
+        print(f'{top_y_pred} {top_y_true}')
+        if top_y_pred[0] == top_y_true[0]:
+            y_pred_loc = np.zeros(60)
+            y_true_loc = np.zeros(60)
+
+    return
+
+
 if __name__ == '__main__':
     guideset = pd.read_csv(f"{config.path}/guideset_data.txt", sep='\t')
     prerequesites = pkl.load(open(os.path.join(Lindel.__path__[0], 'model_prereq.pkl'), 'rb'))
@@ -17,6 +40,7 @@ if __name__ == '__main__':
 
     x_train, y_train = get_train_data(guideset, prerequesites)
 
+    y_labels = y_train.columns.values
     x_train = x_train.values
     x_train = torch.tensor(x_train, dtype=torch.float)
     x_train = x_train.to(device)
@@ -41,6 +65,7 @@ if __name__ == '__main__':
 
     train_loss_history = []
     test_loss_history = []
+    accuracy_history = []
     err_increase = 0
 
     for epoch in tqdm(range(config.epochs)):
@@ -57,6 +82,8 @@ if __name__ == '__main__':
         model.eval()
         with torch.no_grad():
             y_pred_test = model(x_test)
+            print('joe')
+            accuracy(y_pred_test, y_test, y_labels)
             test_loss = criterion(y_pred_test, y_test)
             test_loss_history.append(test_loss.item())
 
