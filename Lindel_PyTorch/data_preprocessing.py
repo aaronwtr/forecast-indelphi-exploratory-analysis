@@ -199,8 +199,8 @@ def fetch_candidate_samples():
 
 
 def get_train_data(guidedata, prereq):
-    if os.path.exists(f'{config.path}/train_data_clipped.pkl'):
-        train_data = pd.read_pickle(f'{config.path}/train_data_clipped.pkl')
+    if os.path.exists(f'{config.path}/train_data.pkl'):
+        train_data = pd.read_pickle(f'{config.path}/train_data.pkl')
         return train_data
     else:
         tijsterman_oligos = config.tmp_tijsterman_oligos
@@ -273,8 +273,8 @@ def get_train_data(guidedata, prereq):
 
 
 def get_test_data(guidedata, prereq, train_indels):
-    if os.path.exists(f'{config.path}/test_data_clipped.pkl'):
-        test_data = pd.read_pickle(f'{config.path}/test_data_clipped.pkl')
+    if os.path.exists(f'{config.path}/test_data.pkl'):
+        test_data = pd.read_pickle(f'{config.path}/test_data.pkl')
         return test_data
     else:
         test_tijsterman_oligos = config.tmp_test_tijsterman_oligos
@@ -366,3 +366,5 @@ if __name__ == '__main__':
 
     testing_data = get_test_data(guideset, prerequesites, train_size)
     pd.to_pickle(testing_data, f'{config.path}/test_data.pkl')
+
+    print(testing_data[0].shape)

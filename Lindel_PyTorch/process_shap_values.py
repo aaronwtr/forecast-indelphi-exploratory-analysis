@@ -16,25 +16,24 @@ def open_shap_data(path):
     files = os.listdir(path)
     values = []
 
-    file = "Oligo_4698_D18_L-19C12R12_global_shap_values_2.pkl"
+    for file in files:
+        with open(path + file, 'rb') as f:
+            if config.shap_type == 'global':
+                shap_vals = pkl.load(f)
+                shap_vals = np.array(shap_vals)
+                shap_vals[np.isnan(shap_vals)] = 0.0
+                shap_vals = shap_vals[0, :, :]
+            else:
+                shap_vals, ex_value = pkl.load(f)
+                shap_vals = np.array(shap_vals)
+                shap_vals = np.mean(shap_vals, axis=0)
+                shap_vals[np.isnan(shap_vals)] = 0.0
 
-    with open(path + file, 'rb') as f:
-        if config.shap_type == 'global':
-            shap_vals = pkl.load(f)
-            shap_vals = np.array(shap_vals)
-            shap_vals[np.isnan(shap_vals)] = 0.0
-            shap_vals = shap_vals[0, :, :]
-            print(shap_vals.shape)
-        else:
-            shap_vals, ex_value = pkl.load(f)
-            shap_vals[np.isnan(shap_vals)] = 0.0
-            values.append(shap_vals)
-
-            return values, feature_data, ex_value
-
-    values.append(shap_vals)
-
-    return values, feature_data
+        values.append(shap_vals)
+    if config.shap_type == 'global':
+        return values, feature_data
+    else:
+        return values, feature_data, ex_value
 
 
 def rank_features(x, feature_data):
@@ -122,7 +121,8 @@ if __name__ == '__main__':
     robustness of the Shapley value method. 
     '''
 
-    base_path = f'{config.lindel_hd_path}/shap_save_data/shapley_values/global_explanations/D18/n_100/nsamples=200/'
+    base_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations/I1/n_1000/' \
+                f'nsamples=1e03/'
     if config.shap_type == 'global':
         shap_values, features = open_shap_data(base_path)
     else:
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     Generating summary plots for a single instance in the repair outcome dataset.
     '''
 
-    features = features.iloc[shap_values[0].shape[0], :]
+    # features = features.iloc[shap_values[0].shape[0], :]
     summary_plot = False
     if summary_plot:
         for value_matrix in shap_values:
@@ -165,8 +165,8 @@ if __name__ == '__main__':
         plt.tight_layout()
         plt.show()
 
-        force = shap.force_plot(ex_value, shap_values[0], features.iloc[0, :], contribution_threshold=0.5)
-        shap.save_html(f'{config.path}/shap_values_visualizations/force_plots/results/D18/n_1000/'
+        force = shap.force_plot(ex_value[0], shap_values[0], features.iloc[0, :], contribution_threshold=0.5)
+        shap.save_html(f'{config.path}/shap_values_visualizations/force_plots/results/D16/n_1000/'
                        f'nsamples={config.nsamples}/{config.indel_of_interest}_force_plot.html', force)
         plt.clf()
         plt.close()
