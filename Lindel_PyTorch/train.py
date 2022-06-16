@@ -11,25 +11,50 @@ import numpy as np
 
 
 def accuracy(y_pred, y_true, labels):
-    # transform y_pred and y_true torch.tensors to ndarrays
     y_pred = y_pred.detach().numpy()
     y_true = y_true.detach().numpy()
     y_pred = pd.DataFrame(y_pred, columns=labels)
     y_true = pd.DataFrame(y_true, columns=labels)
+    y_pred = y_pred.sample(n=500)
+    y_true = y_true.sample(n=500)
+    accs = []
 
-    for (i, row), (j, row_) in zip(y_pred.iterrows(), y_true.iterrows()):
+    for (j, row), (k, row_) in zip(y_pred.iterrows(), y_true.iterrows()):
         y_pred = row.to_dict()
         y_true = row_.to_dict()
         y_pred = dict(sorted(y_pred.items(), key=lambda x: x[1], reverse=True))
         y_true = dict(sorted(y_true.items(), key=lambda x: x[1], reverse=True))
         top_y_pred = list(y_pred.keys())[0]
         top_y_true = list(y_true.keys())[0]
-        print(f'{top_y_pred} {top_y_true}')
-        if top_y_pred[0] == top_y_true[0]:
-            y_pred_loc = np.zeros(60)
-            y_true_loc = np.zeros(60)
 
-    return
+        if top_y_pred[0] == top_y_true[0]:
+            y_pred_r = top_y_pred.split('R')[1]
+            y_true_r = top_y_true.split('R')[1]
+            y_pred_len = top_y_pred.split('_')[0][1:]
+            y_true_len = top_y_true.split('_')[0][1:]
+
+            y_pred_l = abs(int(y_pred_len) - int(y_pred_r))
+            y_true_l = abs(int(y_true_len) - int(y_true_r))
+
+            y_pred_loc = np.zeros(65)
+            y_true_loc = np.zeros(65)
+
+            for i_ in range(int(y_pred_r)):
+                y_pred_loc[i_ + 30] = 1
+            for i_ in range(int(y_true_r)):
+                y_true_loc[i_ + 30] = 1
+
+            for i_ in range(int(y_pred_l)):
+                y_pred_loc[29 - i_] = 1
+            for i_ in range(int(y_true_l)):
+                y_true_loc[29 - i_] = 1
+
+            overlap = np.sum(y_pred_loc * y_true_loc)
+            total = np.sum(y_true_loc)
+            accs.append(overlap / total)
+
+    acc = np.mean(accs)
+    return acc
 
 
 if __name__ == '__main__':
@@ -82,12 +107,12 @@ if __name__ == '__main__':
         model.eval()
         with torch.no_grad():
             y_pred_test = model(x_test)
-            print('joe')
-            accuracy(y_pred_test, y_test, y_labels)
+            accuracy_history.append(accuracy(y_pred_test, y_test, y_labels))
             test_loss = criterion(y_pred_test, y_test)
             test_loss_history.append(test_loss.item())
 
-        print(f'Epoch: {epoch + 1}, Train loss: {train_loss.item():.4f}, Test loss: {test_loss.item():.4f}')
+        print(f'Epoch: {epoch + 1}, Train loss: {train_loss.item():.4f}, Test loss: {test_loss.item():.4f}, Accuracy: '
+              f'{accuracy_history[-1]:.4f}')
 
         if epoch > 2:
             if test_loss_history[-1] > test_loss_history[-2]:
@@ -99,12 +124,17 @@ if __name__ == '__main__':
         if early_stop_check_sum == early_stop_check_prod or err_increase == config.patience:
             break
 
-    with open(f'{config.path}/losses/train_losses/train_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl', 'wb') as file:
+    with open(
+            f'{config.path}/losses/train_losses/train_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl',
+            'wb') as file:
         pkl.dump(train_loss_history, file)
     file.close()
 
-    with open(f'{config.path}/losses/test_losses/test_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl', 'wb') as file:
+    with open(
+            f'{config.path}/losses/test_losses/test_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl',
+            'wb') as file:
         pkl.dump(test_loss_history, file)
     file.close()
 
-    torch.save(model.state_dict(), f'{config.path}/model_params/model_params_{epoch}_epochs_{config.l2}_weight_decay.pkl')
+    torch.save(model.state_dict(),
+               f'{config.path}/model_params/model_params_{epoch}_epochs_{config.l2}_weight_decay.pkl')
