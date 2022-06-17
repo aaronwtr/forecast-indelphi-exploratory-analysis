@@ -88,7 +88,6 @@ if __name__ == '__main__':
     test_data = pkl.load(open(f'{config.path}/test_data.pkl', 'rb'))
     training_data = pkl.load(open(f'{config.path}/training_data.pkl', 'rb'))
 
-
     dfs_container = []
     oligo_idx = 0
 
