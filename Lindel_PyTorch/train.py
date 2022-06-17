@@ -124,16 +124,19 @@ if __name__ == '__main__':
         if early_stop_check_sum == early_stop_check_prod or err_increase == config.patience:
             break
 
-    with open(
-            f'{config.path}/losses/train_losses/train_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl',
-            'wb') as file:
+    with open(f'{config.path}/losses/train_losses/train_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_'
+              f'learning_rate_{config.batch_size}_batch_size.pkl', 'wb') as file:
         pkl.dump(train_loss_history, file)
     file.close()
 
-    with open(
-            f'{config.path}/losses/test_losses/test_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_learning_rate_{config.batch_size}.pkl',
-            'wb') as file:
+    with open(f'{config.path}/losses/test_losses/test_loss_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_'
+              f'learning_rate_{config.batch_size}_batch_size.pkl', 'wb') as file:
         pkl.dump(test_loss_history, file)
+    file.close()
+
+    with open(f'{config.path}/losses/accuracies/accuracy_{epoch}_epochs_{config.l2}_weight_decay_{config.lr}_'
+              f'learning_rate_{config.batch_size}_batch_size.pkl', 'wb') as file:
+        pkl.dump(accuracy_history, file)
     file.close()
 
     torch.save(model.state_dict(),
