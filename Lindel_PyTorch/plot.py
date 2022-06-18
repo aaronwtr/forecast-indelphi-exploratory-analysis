@@ -10,6 +10,7 @@ if __name__ == '__main__':
     accuracy_files = os.listdir('losses/accuracies')
     train_loss_files.remove('archive')
     test_loss_files.remove('archive')
+    accuracy_files.remove('archive')
     train_losses = []
     test_losses = []
     accuracies = []
