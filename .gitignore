@@ -82,3 +82,7 @@ Lindel/train_1.py
 FORECasT/test_dels_ins.csv
 
 FORECasT/train_dels_ins.csv
+
+FORECasT/test_ins.csv
+
+FORECasT/train_ins.csv
