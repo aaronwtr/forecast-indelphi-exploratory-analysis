@@ -10,7 +10,7 @@ import config
 
 
 def open_shap_data(path):
-    with open(f'{config.path}/explanation_datasets/dataset_size_1000/Oligo_4698_D18_L-19C12R12.pkl', 'rb') as f:
+    with open(f'{config.path}/explanation_datasets/dataset_size_1000/Oligo_3465_I1_L-2C1R0.pkl', 'rb') as f:
         feature_data = pkl.load(f)
 
     files = os.listdir(path)
@@ -134,6 +134,8 @@ if __name__ == '__main__':
     Generating summary plots for a single instance in the repair outcome dataset.
     '''
 
+
+    test_features = features['IL-1--1']
     summary_plot = True
     if summary_plot:
         for value_matrix in shap_values:

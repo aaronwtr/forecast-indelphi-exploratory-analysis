@@ -164,7 +164,7 @@ def getExplanationData(guidedata, ioi):
         current_oligo = int(guidedata['ID'][oligo_idx][5:])
 
     samples = pd.read_pickle(
-        f"{config.path}/candidate_samples/test_data/large_deletions_freq_50+/" + str(
+        f"{config.path}/candidate_samples/test_data/dinucleotide_insertions_most_freq/" + str(
             guidedata['ID'][oligo_idx][0:5]) + '_' + str(current_oligo)
     )
 

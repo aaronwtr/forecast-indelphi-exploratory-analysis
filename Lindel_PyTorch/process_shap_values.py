@@ -121,7 +121,7 @@ if __name__ == '__main__':
     robustness of the Shapley value method. 
     '''
 
-    base_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations/I1/n_1000/' \
+    base_path = f'{config.path}/shap_save_data/shapley_values/{config.shap_type}_explanations/I2/n_1000/' \
                 f'nsamples=1e03/'
     if config.shap_type == 'global':
         shap_values, features = open_shap_data(base_path)
@@ -165,8 +165,8 @@ if __name__ == '__main__':
         plt.tight_layout()
         plt.show()
 
-        force = shap.force_plot(ex_value[0], shap_values[0], features.iloc[0, :], contribution_threshold=0.5)
-        shap.save_html(f'{config.path}/shap_values_visualizations/force_plots/results/D16/n_1000/'
-                       f'nsamples={config.nsamples}/{config.indel_of_interest}_force_plot.html', force)
-        plt.clf()
-        plt.close()
+        # force = shap.force_plot(ex_value[0], shap_values[0], features.iloc[0, :], contribution_threshold=0.5)
+        # shap.save_html(f'{config.path}/shap_values_visualizations/force_plots/results/D16/n_1000/'
+        #                f'nsamples={config.nsamples}/{config.indel_of_interest}_force_plot.html', force)
+        # plt.clf()
+        # plt.close()
